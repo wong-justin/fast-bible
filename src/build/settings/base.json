@@ -1,0 +1,6 @@
+{
+    "app_name": "Quick Bible",
+    "author": "J. Wong",
+    "main_module": "src/main/python/main.py",
+    "version": "0.1.0"
+}

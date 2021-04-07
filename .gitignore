@@ -1,0 +1,11 @@
+target/
+env/
+docs/*
+!docs/demo.gif
+*.bat
+misc
+__pycache__/
+.ipynb_checkpoints/
+
+*.manifest
+*.spec
