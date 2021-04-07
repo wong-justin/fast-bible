@@ -73,15 +73,15 @@ def set_theme(app):
     font.setPointSize(10)
     app.setFont(font)
 
-    # icon
-    icon = QIcon()
-    # icon.addFile('../resources/assets/icon4.ico')
-    icon.addFile(appctxt.get_resource('assets/icon4.ico'))
-        # something hacky for windows to show icon in taskbar
-    myappid = 'biblenavigation.myapp' # arbitrary string
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-
-    app.setWindowIcon(icon)
+    # # icon
+    # icon = QIcon()
+    # # icon.addFile('../resources/assets/icon4.ico')
+    # icon.addFile(appctxt.get_resource('assets/icon4.ico'))
+    #     # something hacky for windows to show icon in taskbar
+    # myappid = 'biblenavigation.myapp' # arbitrary string
+    # ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    #
+    # app.setWindowIcon(icon)
 
 class NavStack(QStackedWidget):
     # going forward or back between main widget screens
