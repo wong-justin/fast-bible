@@ -20,11 +20,16 @@ Download the [latest release](https://github.com/wong-justin/quick-bible/release
   - local search in book or chapter context?
 - Resizable window
 - Fix Psalms superscriptions and [other extras]
+- Shortcut to books pane
+- ctrl-c copy text
+- ctrl-up/down navigate verses
+- abbreviate books in window title?
+- join all content into one json?
 
 - make inital setup script run automatically [during installer setup?](https://nsis.sourceforge.io/Simple_tutorials)
 - versioning: include in a "help" section for app? or just incl elsewhere, like in exe name or adjacent json
   - right click .exe -> Properties does show version and whatnot, so technically it's there just not as visible
-  - automatic updates by app? or manual checking at least?
+  - auto updates? or user checking thru app at least?
     - app checks github page for new release maybe
 
 <details>
