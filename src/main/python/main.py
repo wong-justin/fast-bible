@@ -111,6 +111,7 @@ class Page:
     '''Abstract class for a widget used in PageManager.
 
     Recieves PageManager as a nav attribute, allowing communication with other pages.
+    Implement load_state() so other pages can send data when navigating to this one.
 
     PageA(Page):
         ...
@@ -122,10 +123,6 @@ class Page:
         def load_state(self, state):
             # do something
     '''
-    # def __init__(self, widget, nav):
-        # self.title = Page.title
-    #     self.nav = nav
-    #     self.widget = widget
 
     # page recreatable with state
     def load_state(self, state):
@@ -140,7 +137,7 @@ class Page:
             self.nav.back()
 
 class PageManager(QStackedWidget):
-    '''Groups Page subclasses with navigating logic.
+    '''Groups Page subclasses for navigating among each other or back in history.
 
     Needs to be child of main window.'''
 
@@ -163,11 +160,6 @@ class PageManager(QStackedWidget):
 
         self._history = []   # page ids, not page objects themselves
         self._curr_id, self.curr_page = list(self._pages.items())[0]  # the first page in given args
-
-    # def keyPressEvent(self, event):
-    #     # give control to current page instead of this widget absorbing the event
-    #     self.curr_page.keyPressEvent(event)
-    #     return
 
     def to(self, new_id, state=None):#, title=''):
         '''Used by a page to nav to another page, communicating any new data with state.
@@ -544,14 +536,33 @@ class VersesPage(Page, QTextEdit, Filterable):
         if not vbar.value() == vbar.maximum():  # avoid edge case of last verse: it stays maximum scroll, else hiding last line
             vbar.triggerAction(QAbstractSlider.SliderSingleStepSub) # but in general content looks nicer when not pinned to top
 
+    def change_highlighted_scripture(self, diff):
+        # make sure a verse is already selected
+        pattern = self.searchbox.text()
+        if pattern not in self.verses.keys():
+            return
+        # make sure desired verse within bounds
+        n = int(pattern) + diff
+        if str(n) not in self.verses.keys():
+            return
+
+        # update searchbox, which triggers new highlight filter and updates user
+        self.searchbox.activate(str(n))
+
     def keyPressEvent(self, event):
         keypress = event.key()
-        # nav back when no searchbox
+        # nav back when backspacing without searchbox
         if not self.search_is_active() and keypress == Qt.Key_Backspace:
             self.nav.back()
             self.nav.set_title(data.curr_scripture.decrement())
             self.verticalScrollBar().setValue(0)    # back to top
-        # scrolling in the text widget
+        # navigating this text widget
+        elif event.modifiers() == Qt.ControlModifier:
+            if keypress not in (Qt.Key_Down, Qt.Key_Up):
+                return
+            diff = (1 if keypress == Qt.Key_Down else -1)
+            self.change_highlighted_scripture(diff)
+
         elif keypress in (Qt.Key_Down, Qt.Key_Up):
             QTextEdit.keyPressEvent(self, event)
         # keypress goes to searchbox
@@ -614,9 +625,10 @@ def MarginParent(widget):
 # --- run
 
 if __name__ == '__main__':
-    book_logic.init_data()
     app = QApplication([])
     set_theme(app)
+
+    book_logic.init_data()
 
     main = MarginParent(PageManager(BooksPage, ChaptersPage, VersesPage))
     main.setWindowTitle('Bible')    # initial title to override fbs default

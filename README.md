@@ -32,6 +32,7 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
   - right click .exe -> Properties does show version and whatnot, so technically it's there just not as visible
   - auto updates? or user checking thru app at least?
     - app checks github page for new release maybe
+- prevent slow loading + white dialog on initial setup download?
 
 <details>
 <summary>steps to fbs-ify a pyqt app on windows</summary>
