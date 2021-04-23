@@ -6,7 +6,7 @@ import book_logic
 from constants import appctxt
 
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QPalette, QColor, QFont, QFontDatabase, QIcon
+from PyQt5.QtGui import QPalette, QColor, QFont, QFontDatabase, QIcon, QFontMetrics
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QPushButton,
     QLineEdit, QTextEdit, QLabel, QListWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
     QSpacerItem, QAbstractSlider, QDialog, QProgressDialog, QTableWidget, QTableWidgetItem,
@@ -616,7 +616,7 @@ class VersesPage(Page, QTextEdit, Filterable):
             Filterable.keyPressEvent(self, event)
 
 def format_to_html(verses):
-    # returns numbers spaced and bolded before verse texts.
+    # returns numbers spaced and bolded preceding verse content.
     return '   '.join(      # 2 nbsps post-num and 4 spaces pre-num looks good
         f'<b>{num}</b>\xa0\xa0{verse}'     # spacing probably changes with diff fonts
         for num, verse in verses.items()
@@ -653,82 +653,65 @@ def dict_where_keys(d, filter_key_fn):
 
 OPACITY_TEMPLATE = '<span style="color:rgba(222, 226, 247, 0.5);">{}</span>'
 
-### --- new feature
+# class SearchResultItem(QListWidgetItem):
+#     def __init__(self, scripture, text):
+#         super().__init__(parent=None, QListWidgetItem.UserType)
+#         self.scripture = scripture
+#         self.text = text
 
 class SearchResultDelegate(QStyledItemDelegate):
-    # custom item view in a list widget
+    # custom rendering of an item in a list widget
 
     def paint(self, painter, option, index):
-        # show emphasis on title and normal text subtitle on line below
-        # print(index.row(), index.column(), index.parent())
+        # turns item text into title and subtitle.
+        # imitates standard list widget item style on select.
+        # title bolded, subtitle beneath.
 
-        if not index.isValid():
-            print('invalid index', index.row(), index.parent())
-            return
+        # maybe custom eliding for ellipsis on both left and right, focused around match?
+        # or at least on right, with match surely in view starting from left
 
         painter.save()
-        # m = index.model() # abstract item model
-        item_data = index.data(Qt.DisplayRole) # default data, 0
-        title, subtitle = item_data.split('\n')
-        title = title + '\n'
-        subtitle = '\n' + subtitle
-        if not title:
-            print('title missing', item_data)
+        scripture = index.data(Qt.DisplayRole) # default item data is at role 0
+            # custom data was passed into this item, no longer usual type str
 
-        # self.initStyleOption(option, index)
-        # option = SearchResultDelegate.initStyleOption(option, index)
+        title = scripture['location'] + '\n'
+        subtitle = '\n' + scripture['text']
+
         given_rect = option.rect    # from size hint
+        states = option.state        # bitwise OR of QStyle.State_ flags
 
-        # rect.setHeight(2*rect.height())
-
-        # font = index.data(Qt.FontRole)
-        # print(font)
-        state = option.state    # bitwise OR combination of QStyle.State_ flags
-
-        palette = QApplication.palette() # text, highlight, and highlightedtext
-
-        if state & QStyle.State_Selected:# _active, _selected, _hasfocus
+        if states & QStyle.State_Selected:
+            palette = QApplication.palette()
             painter.setPen(palette.color(QPalette.HighlightedText))
             painter.fillRect(given_rect, palette.color(QPalette.Highlight))
-        # elif state & QStyle.State_None:
-            # painter.setPen(palette.color(QPalette.Text))
-            # painter.setPen(palette.color(index.role()))
 
-        # x, y = rect.x(), rect.y()
-        # style = QApplication.style()
-        # text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, option)
-        # style.drawItemText(painter, rect, option.displayAlignment, palette, True, subtitle)
-
-        # add a little extra margin to text
-        text_rect = given_rect.adjusted(3, 3, -3, -3)
+        # text inset by small margin
+        text_rect = given_rect.adjusted(2, 2, -2, -2)
 
         # draw title text
-        font = QFont(option.font)
-        font.setWeight(QFont.Bold)
-        painter.setFont(font)
+        em_font = QFont(option.font)    # copy
+        em_font.setWeight(QFont.Bold)
+        painter.setFont(em_font)
         painter.drawText(text_rect, option.displayAlignment, title)
-        #
-
 
         # draw subtitle text
-        painter.setFont(option.font)    # old font
-        # painter.translate(2, 2)
-        painter.drawText(text_rect, option.displayAlignment, subtitle)
+        painter.setFont(option.font)    # back to default font
+        # painter.translate(3, 0)   # slight indent under title might look nice
+        elided_subtitle = QFontMetrics(QFont(option.font)).elidedText(subtitle, Qt.ElideRight, text_rect.width())#, Qt.TextShowMnemonic)
+        # elided_subtitle = painter.fontMetrics().elidedText(subtitle, Qt.ElideRight, text_rect.width())#, Qt.TextShowMnemonic)
+        painter.drawText(text_rect, option.displayAlignment, elided_subtitle)
 
-        # painter.drawRect(rect)
-
-        # reset to not mess up future painting
         painter.restore()
-        # QStyledItemDelegate.paint(self, painter, option, index)
 
     def sizeHint(self, option, index):
         # fit to width, creating ellipsis on long text with no need for horiz scroll
+        # default height seems to have been n*line_height of str in option.data(Qt.DisplayRole)
+
         s = QSize()
-        #
-        old_height = super().sizeHint(option, index).height()    # I think it creates height from newlines in index.data
-        extra = 4
-        s.setHeight(old_height + extra)
-        s.setWidth(0)
+        line_height = QFontMetrics(option.font).height()
+        extra = 4   # produces more comfortable line spacing
+        s.setHeight(2*line_height + extra)
+        s.setWidth(0)   # don't allow horiz scroll when there's wide items
         return s
 
 class SearchResultsPage(Page, FilterableList):
@@ -740,13 +723,6 @@ class SearchResultsPage(Page, FilterableList):
         FilterableList.__init__(self)
 
         self.setItemDelegate(SearchResultDelegate(self))
-
-
-    # def sizeHint(self):
-    #     s = QSize()
-    #     s.setHeight(QListWidget.sizeHint(self).height())
-    #     s.setWidth(self.sizeHintForColumn(0))
-    #     return s
 
     def load_state(self, state):
         self.verses_iter_factory = state
@@ -770,17 +746,14 @@ class SearchResultsPage(Page, FilterableList):
             return
 
         self.clear()
-        i = 0
         for n, verse in self.verses_iter_factory():
             match = re.search(search_text, verse)
             if match is not None:
-                self.addItem(f'{n}\n' + verse.replace('\n', ' '))    # separate header from content with \n
-                # item = QListWidgetItem(self)
-                # self.addItem(item)
-                # lbl = QLabel('hi')
-                # self.setItemWidget(item, lbl)
+                item = QListWidgetItem(self)
+                item.setData(Qt.DisplayRole, {'location': n, 'text': verse.replace('\n', '')})
+                self.addItem(item)
 
-                i += 1
+                # self.addItem(f'{n}\n' + verse.replace('\n', ' '))    # separate header from content with \n
 
             # if search_text in verse:
             #     self.addItem(f'{n}\n' + verse)     # QtListWidget method

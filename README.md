@@ -21,7 +21,7 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
 - Fix Psalms superscriptions and [other extras]
 - Shortcut to books pane
 - ctrl-c copy text
-- ctrl-up/down navigate verses
+- ctrl-up/down navigate verses (start at beginning or end if none highlighted)
 - ctrl-plus/minus font size
 
 - abbreviate books in window title?
@@ -33,6 +33,7 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
   - auto updates? or user checking thru app at least?
     - app checks github page for new release maybe
 - prevent slow loading + white dialog on initial setup download?
+- simplified regex, eg shortcuts for case sensitive, exact match, etc
 
 - generalize for other languages
 
