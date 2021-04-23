@@ -545,10 +545,13 @@ class VersesPage(Page, QTextEdit, Filterable):
             vbar.triggerAction(QAbstractSlider.SliderSingleStepSub) # but in general content looks nicer when not pinned to top
 
     def keyPressEvent(self, event):
-        if not self.search_is_active() and event.key() == Qt.Key_Backspace:
+        keypress = event.key()
+        if not self.search_is_active() and keypress == Qt.Key_Backspace:
             self.nav.back()
             self.nav.set_title(data.curr_scripture.decrement())
             self.verticalScrollBar().setValue(0)    # back to top
+        elif keypress in (Qt.Key_Down, Qt.Key_Up):
+            QTextEdit.keyPressEvent(self, event)
         else:
             Filterable.keyPressEvent(self, event)
 
@@ -613,6 +616,7 @@ if __name__ == '__main__':
     set_theme(app)
 
     main = MarginParent(PageManager(BooksPage, ChaptersPage, VersesPage))
+    main.setWindowTitle('Bible')    # initial title to override fbs default
     main.show()
 
     # if first time loading app
@@ -641,8 +645,6 @@ if __name__ == '__main__':
     # appctxt = ApplicationContext()    # 1. Instantiate ApplicationContext
     exit_code = appctxt.app.exec_()     # 2. Invoke appctxt.app.exec_()
     sys.exit(exit_code)
-
-
 
 
 
