@@ -512,7 +512,7 @@ stack.addWidget(chapters_screen)
 stack.addWidget(text_screen)
 
 grid = QGridLayout()
-grid.addWidget(stack, 0, 0, Qt.AlignLeft | Qt.AlignTop)
+grid.addWidget(stack, 0, 0)#, Qt.AlignLeft | Qt.AlignTop)
 grid.addWidget(searchbox, 0, 0, Qt.AlignRight | Qt.AlignBottom)
 # grid.setContentsMargins(0,0,0,0)
 grid.setContentsMargins(2,2,2,2)

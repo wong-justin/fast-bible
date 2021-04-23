@@ -1,3 +1,5 @@
+# rename me bible_logic or shared
+
 # data
 import constants
 
@@ -22,6 +24,9 @@ def get_book_names():
     return data.BOOK_NAMES
 
 def get_num_chapters_for(book):
+    return data.CHAPTER_COUNTS[book]
+
+def get_num_chapters(book):
     return data.CHAPTER_COUNTS[book]
 
 def has_chapters(book):
