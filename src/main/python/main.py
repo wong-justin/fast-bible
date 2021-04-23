@@ -12,11 +12,12 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QPushButton,
     QSpacerItem, QAbstractSlider, QDialog, QProgressDialog)
 
 from types import SimpleNamespace
-# import re
+import re
 # import ctypes
 import sys
 import time
 import os
+import json
 
 class ScriptureLocation:
     '''Abstraction to divide scripture into buildable parts.
@@ -410,7 +411,11 @@ class BooksPage(Page, FilterableList):
         #     self.nav.set_title(data.curr_scripture.decrement())
         # else:
         #     FilterableList.keyPressEvent(self, event)
-        FilterableList.keyPressEvent(self, event)   # this is 0th page; don't need nav back
+        if ctrl_f_event(event):
+            chapters = get_current_book()
+            self.nav.to(SearchResultsPage, state=lambda: iter_all_bible_verses())
+        else:
+            FilterableList.keyPressEvent(self, event)   # this is 0th page; don't need nav back
 
         # if keypress == ctrl_F:
         #     self.nav.to(SearchResultsPage, state='scope:')
@@ -460,11 +465,46 @@ class ChaptersPage(Page, FilterableList):
         if not self.search_is_active() and event.key() == Qt.Key_Backspace:
             self.nav.back()
             self.nav.set_title(data.curr_scripture.decrement())
+        elif ctrl_f_event(event):
+            chapters = get_current_book()
+            book_name = data.curr_scripture.components[0]
+            self.nav.to(SearchResultsPage, state=lambda: iter_verses(book_name, chapters))
         else:
             FilterableList.keyPressEvent(self, event)
 
-        # if keypress == ctrl_F:
-        #     self.nav.to(SearchResultsPage, state='scope:')
+def read_book(book_name):
+    fp = constants.BOOK_FP_TEMPLATE.format(book_name)
+    with open(fp, 'r') as file:
+        return json.load(file)
+
+def iter_all_bible_verses():
+    for book_name in book_logic.data.BOOK_NAMES:
+        book = read_book(book_name)
+        if has_chapters(book_name):
+            chapters = book
+            yield from iter_verses(book_name, chapters)
+        else:
+            verses = book
+            yield from (
+                (f'{book_name} {n}',v)
+                for n,v in verses.items()
+            )
+
+def iter_verses(book_name, chapters):
+    # for verses in chapters.values():
+    #     yield from verses.items()
+
+    # chapters are out of order in file, ugh. fix setup script later
+    chapter_nums = (str(i) for i in range(1, len(chapters)+1))
+    for c in chapter_nums:
+        verses = chapters[c]
+        yield from (
+            (f'{book_name} {c}:{n}',v)
+            for n,v in verses.items()
+        )
+
+def ctrl_f_event(event):
+    return event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_F
 
 class VersesPage(Page, QTextEdit, Filterable):
     '''Formats dict of verses {num: text} into text display.
@@ -556,21 +596,23 @@ class VersesPage(Page, QTextEdit, Filterable):
             self.nav.back()
             self.nav.set_title(data.curr_scripture.decrement())
             self.verticalScrollBar().setValue(0)    # back to top
-        # navigating this text widget
-        elif event.modifiers() == Qt.ControlModifier:
-            if keypress not in (Qt.Key_Down, Qt.Key_Up):
-                return
-            diff = (1 if keypress == Qt.Key_Down else -1)
-            self.change_highlighted_scripture(diff)
 
+        elif event.modifiers() == Qt.ControlModifier:
+            # scripture up/down
+            if keypress in (Qt.Key_Down, Qt.Key_Up):
+                diff = (1 if keypress == Qt.Key_Down else -1)
+                self.change_highlighted_scripture(diff)
+            # search this chapter
+            elif keypress == Qt.Key_F:
+                # self.nav.to(SearchResultsPage, state=iter(self.verses.items()))
+                self.nav.to(SearchResultsPage, state=lambda: self.verses.items())
+
+        # scroll
         elif keypress in (Qt.Key_Down, Qt.Key_Up):
             QTextEdit.keyPressEvent(self, event)
         # keypress goes to searchbox
         else:
             Filterable.keyPressEvent(self, event)
-
-        # if keypress == ctrl_F:
-        #     self.nav.to(SearchResultsPage, state='scope:')
 
 def format_to_html(verses):
     # returns numbers spaced and bolded before verse texts.
@@ -610,6 +652,53 @@ def dict_where_keys(d, filter_key_fn):
 
 OPACITY_TEMPLATE = '<span style="color:rgba(222, 226, 247, 0.5);">{}</span>'
 
+### --- new feature
+
+def iter_ending_in_none(it):
+    yield from it
+    yield None
+
+class SearchResultsPage(Page, FilterableList):
+    # maybe use a qtreeview instead of qlistwidget?
+    # or use custom QListWidgetItems that can maybe hold more
+
+    def __init__(self):
+        Page.__init__(self)
+        FilterableList.__init__(self)
+
+    def load_state(self, state):
+        self.verses_iter_factory = state
+        scope = str(data.curr_scripture)
+        self.nav.set_title('Search in ' + scope)
+
+    def show_all(self):
+        # don't want to show all verses with no search
+        self.clear()
+
+    def show_items(self, items):
+        # replaced by custom filter_items
+        return
+
+    def filter_items(self, search_text):
+        # pattern = re.compile(search_text)
+        # print('filtering')
+        self.clear()
+        for n, verse in self.verses_iter_factory():
+            # if self.new_search:
+            #     self.new_search = False
+            #     break
+            # if re.match(pattern, verse):
+            if search_text in verse:
+                self.addItem(f'{n}\n' + verse)     # QtListWidget method
+
+    def keyPressEvent(self, event):
+        if not self.search_is_active() and event.key() == Qt.Key_Backspace:
+            self.nav.back()
+            self.nav.set_title(str(data.curr_scripture))
+            self.clear()
+        else:
+            FilterableList.keyPressEvent(self, event)
+
 def MarginParent(widget):
     # create parent with small margins around widget
     parent = QWidget()
@@ -630,7 +719,7 @@ if __name__ == '__main__':
 
     book_logic.init_data()
 
-    main = MarginParent(PageManager(BooksPage, ChaptersPage, VersesPage))
+    main = MarginParent(PageManager(BooksPage, ChaptersPage, VersesPage, SearchResultsPage))
     main.setWindowTitle('Bible')    # initial title to override fbs default
     main.show()
 
@@ -660,41 +749,3 @@ if __name__ == '__main__':
     # appctxt = ApplicationContext()    # 1. Instantiate ApplicationContext
     exit_code = appctxt.app.exec_()     # 2. Invoke appctxt.app.exec_()
     sys.exit(exit_code)
-
-
-
-
-### --- new feature
-
-# class SearchResultsPage(Page, FilterableList):
-#
-#
-#     def __init__(self):
-#         pass
-#
-    # def load_state(self, state):
-    #     self.iter_verses = state.iter_verses
-    #     self.nav.set_title('Search in ' + state.scope)
-    #
-    # def show_all(self):
-    #     # don't want to show all verses with no search
-    #     return
-#
-    # def show_items(self, items):
-    #     # replaced by custom filter_items
-    #     return
-#
-    # def filter_items(self, search_text):
-    #     pattern = re.compile(search_text)
-    #     for verse in self.iter_verses:
-    #         # if self.new_search_started:
-    #         #     break
-    #         if re.match(pattern, verse):
-    #             self.addItem(verse)     # QtListWidget method
-#
-#     def keyPressEvent(self, event):
-#         if not self.search_is_active() and event.key() == Qt.Key_Backspace:
-#             self.nav.back()
-#             self.nav.set_title(data.curr_scripture.decrement())
-#         else:
-#             FilterableList.keyPressEvent(self, event)
