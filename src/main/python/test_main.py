@@ -1,6 +1,8 @@
 '''Refactoring pages of app for more consistency and extensibility.'''
 
 from book_logic import *
+del globals()['data']
+import book_logic
 
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QPalette, QColor, QFont, QFontDatabase, QIcon
@@ -47,6 +49,8 @@ data = SimpleNamespace(
     # bible=load_bible_json(),
     curr_scripture=ScriptureLocation(),
 )
+
+### --- generalized widgets
 
 class Page:
     '''Abstract class for a widget used in PageManager.
@@ -156,9 +160,10 @@ def overlay_bot_right(widget, other):
     widget.setLayout(grid)
 
 class Filterable(QWidget):
-    # Abstract class to implement to react to searchbox filtering your items.
+    # Generic widget with a searchbox for filtering items.
     # Uses self.all_items, an iterable.
-    # Need to implement show_items(items) and maybe filter_items(search_text)
+    # Need to implement show_items(items) at minimum.
+    # filter_items(search_text) good to override filtering method
 
     def __init__(self):
         self.searchbox = SearchBox(self)
@@ -306,14 +311,18 @@ class FilterableList(QListWidget, Filterable):
 
         Filterable.keyPressEvent(self, event)
 
+### --- using generalized widgets
+
+init_data()
+
 class BooksPage(Page, FilterableList):
 
     def __init__(self):
         Page.__init__(self)
         FilterableList.__init__(self)
 
-        # self.set_items(get_book_names())
-        self.set_items([c for c in 'abcdefghijklmnopqrstuvwxyz']) # for testing
+        self.set_items(get_book_names())
+        # self.set_items([c for c in 'abcdefghijklmnopqrstuvwxyz']) # for testing
         self.itemActivated.connect(self.on_book_selected)
 
     def on_book_selected(self, book_item):
@@ -321,15 +330,22 @@ class BooksPage(Page, FilterableList):
         book = book_item.text()
         # start_loading_book(book)    # file io takes a bit, so start now in other thread
 
-        self.nav.to(ChaptersPage, state=100) # for testing
+        # self.nav.to(ChaptersPage, state=100) # for testing
+        start_loading_book(book)    # old method
         # show content
-        # if has_chapters(book):
-        #     # go to chapter screen
-        #     self.nav.to(ChaptersPage, state=get_num_chapters(book))
-        # else:
-        #     # skip to verses screen
-        #     # wait_for_loaded_book()
-        #     self.nav.to(VersesPage, state=data.bible[book])
+        if has_chapters(book):
+            # go to chapter screen
+            self.nav.to(ChaptersPage, state=get_num_chapters(book))
+        else:
+            # skip to verses screen
+
+            # new method
+            # self.nav.to(VersesPage, state=data.bible[book])
+
+            # old method
+            wait_for_loaded_book()
+            verses = get_current_book()
+            self.nav.to(VersesPage, state=verses)
 
 
         # widget cleanup
@@ -362,17 +378,22 @@ class ChaptersPage(Page, FilterableList):
 
     def load_state(self, state):
         num_chapters = state
-        self.set_items(range(num_chapters))
+        self.set_items(range(1, num_chapters+1))
 
     def on_chapter_selected(self, chapter_item):
 
         chapter = chapter_item.text()
 
         # show the content
-        # wait_for_loaded_book()
+        # new method
         # book = data.curr_scripture.book
         # self.nav.to(VersesPage, state=data.bible[book][chapter])
-        self.nav.to(VersesPage, state=None)
+
+        # old method
+        wait_for_loaded_book()
+        verses = get_chapter(chapter)
+        self.nav.to(VersesPage, state=verses)
+        # self.nav.to(VersesPage, state=None) # for testing
 
         # widget cleanup
         self.nav.set_title(data.curr_scripture.increment(chapter))
@@ -389,12 +410,12 @@ class ChaptersPage(Page, FilterableList):
         # if keypress == ctrl_F:
         #     self.nav.to(SearchResultsPage, state='scope:')
 
-class VersesPage(Page, QTextEdit, FilterableList):
+class VersesPage(Page, QTextEdit, Filterable):
 
     def __init__(self):
         Page.__init__(self)
         QTextEdit.__init__(self)
-        FilterableList.__init__(self)
+        Filterable.__init__(self)
 
         # style
         self.setReadOnly(True)
@@ -403,24 +424,108 @@ class VersesPage(Page, QTextEdit, FilterableList):
         self.setFont(font)
 
     def load_state(self, state):
-        verses = state
-        # render
+        self.verses = state
+        self.show_all()
 
-    def show_all():
-        pass
+    def show_all(self):
+        # render
+        html = format_to_html(self.verses)
+        self.set_html(html)
+
+    def set_html(self, html):
+        # wrapping textEdit.setHtml to keep scroll position
+        scroll_pos = self.verticalScrollBar().value()
+        self.setHtml(html)   # this resets scroll
+        self.verticalScrollBar().setValue(scroll_pos)
 
     def filter_items(self, pattern):
-        pass
+        # highlight given verse number
+
+        # make sure the verse is there
+        if pattern not in self.verses.keys():
+            self.show_all()
+            return
+
+        n = int(pattern)
+        verse = self.verses[str(n)]
+
+        pre_verses = dict_where_keys(self.verses, lambda k: int(k) < n)
+        main_verse = {n: verse}
+        post_verses = dict_where_keys(self.verses, lambda k: int(k) > n)
+
+        pre, main, post = (format_to_html(vs) for vs in (pre_verses, main_verse, post_verses))
+
+        html = (
+            OPACITY_TEMPLATE.format(pre) +
+            f' {main} ' +
+            OPACITY_TEMPLATE.format(post)
+        )
+        self.set_html(html)
+
+        # find verse position in text widget
+        plain_verse = f'{n}  {verse}'
+        plain_start = self.toPlainText().index(plain_verse)
+        c = self.textCursor()
+        c.setPosition(plain_start)
+        self.setTextCursor(c)
+
+        # scroll to verse position
+        rect = self.cursorRect()
+        top = rect.top()
+        vbar = self.verticalScrollBar()
+        vbar.setValue(vbar.value() + top)   # top of verse is top of screen
+        if not vbar.value() == vbar.maximum():  # last verse should stay maximum scroll, else hiding last line
+            vbar.triggerAction(QAbstractSlider.SliderSingleStepSub) # but content looks nicer when not pinned to top
 
     def keyPressEvent(self, event):
         if not self.search_is_active() and event.key() == Qt.Key_Backspace:
             self.nav.back()
             self.nav.set_title(data.curr_scripture.decrement())
         else:
-            FilterableList.keyPressEvent(self, event)
+            Filterable.keyPressEvent(self, event)
 
         # if keypress == ctrl_F:
         #     self.nav.to(SearchResultsPage, state='scope:')
+
+def format_to_html(verses):
+    return '   '.join(      # 2 nbsps post-num and 4 spaces pre-num looks good
+        f'<b>{num}</b>\xa0\xa0{verse}'     # spacing probably changes with diff fonts
+        for num, verse in verses.items()
+    )
+
+def to_plaintext(html):
+    # used to match QTextEdit text content
+    replaced = html.replace('\xa0', ' ').replace('\n', ' ')
+    tagless = ''.join( strip_tags(replaced) )
+    return tagless
+
+def strip_tags(html):
+    # helping to_plaintext
+    in_tag = False
+    for c in html:
+        if in_tag:
+            if c == '>':
+                in_tag = False
+            continue
+        else:
+            if c == '<':
+                in_tag = True
+                continue
+            else:
+                yield c
+
+def dict_where_keys(d, filter_key_fn):
+    # result = dict()
+    # for key in d.keys():
+    #     if filter_key_fn(key):
+    #         result[key] = d[key]
+    # return result
+    return {k:v for k,v in d.items() if filter_key_fn(k)}
+
+
+OPACITY_TEMPLATE = '<span style="color:rgba(222, 226, 247, 0.5);">{}</span>'
+
+
 
 
 
