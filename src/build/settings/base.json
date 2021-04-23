@@ -1,5 +1,5 @@
 {
-    "app_name": "Quick Bible",
+    "app_name": "Fast Bible",
     "author": "J. Wong",
     "main_module": "src/main/python/main.py",
     "version": "0.1.0"

@@ -1,12 +1,12 @@
-# Quick Bible
+# Fast Bible
 
-Fast and simple scripture finder. Use keyboard controls to navigate the Bible in a small desktop app.
+Quick and simple scripture finder. Use keyboard controls to navigate the Bible in a small desktop app.
 
 ![demo screencapture](docs/demo.gif)
 
 __\*__  To fully benefit from the features of the New World Translation, such as references, footnotes, and study gems, visit the source at [jw.org](https://jw.org). Not affiliated.
 
-Download the [latest release](https://github.com/wong-justin/quick-bible/releases/latest) for Windows.
+Download the [latest release](https://github.com/wong-justin/fast-bible/releases/latest) for Windows.
 
 ## Controls
 
@@ -22,10 +22,11 @@ Download the [latest release](https://github.com/wong-justin/quick-bible/release
 - Shortcut to books pane
 - ctrl-c copy text
 - ctrl-up/down navigate verses
+- ctrl-plus/minus font size
+
 - abbreviate books in window title?
 - join all content into one json?
 - replace backticks with hyphens (or nothing), and replace newlines with nothing (during initial download and parsing)?
-
 - make inital setup script run automatically [during installer setup?](https://nsis.sourceforge.io/Simple_tutorials)
 - versioning: include in a "help" section for app? or just incl elsewhere, like in exe name or adjacent json
   - right click .exe -> Properties does show version and whatnot, so technically it's there just not as visible

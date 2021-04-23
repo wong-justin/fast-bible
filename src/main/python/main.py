@@ -546,12 +546,15 @@ class VersesPage(Page, QTextEdit, Filterable):
 
     def keyPressEvent(self, event):
         keypress = event.key()
+        # nav back when no searchbox
         if not self.search_is_active() and keypress == Qt.Key_Backspace:
             self.nav.back()
             self.nav.set_title(data.curr_scripture.decrement())
             self.verticalScrollBar().setValue(0)    # back to top
+        # scrolling in the text widget
         elif keypress in (Qt.Key_Down, Qt.Key_Up):
             QTextEdit.keyPressEvent(self, event)
+        # keypress goes to searchbox
         else:
             Filterable.keyPressEvent(self, event)
 
