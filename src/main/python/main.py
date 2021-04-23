@@ -5,7 +5,7 @@ del globals()['data']
 import book_logic
 from constants import appctxt
 
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5.QtGui import QPalette, QColor, QFont, QFontDatabase, QIcon, QFontMetrics
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QPushButton,
     QLineEdit, QTextEdit, QLabel, QListWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
@@ -204,12 +204,11 @@ class PageManager(QStackedWidget):
         self.setWindowTitle(_str)
         self.parentWidget().setWindowTitle(_str)
 
-def overlay_bot_right(widget, other):
-    grid = QGridLayout()
-    # grid.addWidget(self, 0, 0)#, Qt.AlignLeft | Qt.AlignTop)
-    grid.addWidget(other, 0, 0, Qt.AlignRight | Qt.AlignBottom)
-    grid.setContentsMargins(2,2,2,2)
-    widget.setLayout(grid)
+def set_grid_children(parent, grid=None, children=[], positions=[]):
+    g = QGridLayout() if not grid else grid
+    for child, position in zip(children, positions):
+        g.addWidget(child, 0, 0, position)
+    parent.setLayout(g)
 
 class Filterable(QWidget):
     '''Generic widget with an activatable searchbox for filtering items.
@@ -221,7 +220,14 @@ class Filterable(QWidget):
 
     def __init__(self):
         self.searchbox = SearchBox(self)
-        overlay_bot_right(self, self.searchbox)
+
+        set_grid_children(self,
+            children=(self.searchbox,),
+            positions=(Qt.AlignRight | Qt.AlignBottom,)
+        )
+        # overlay_bot_right(self, self.searchbox)
+        # set_grid_layout(self, EmptyPlaceholderWidget(), self.searchbox)
+        # self.placeholder = EmptyPlaceholderWidget(self)
 
     def set_items(self, items):
         # self.all_items = items
@@ -336,8 +342,22 @@ class SearchBox(QLineEdit):
         # self.clear()
         self.filterable.show_all()
 
+def set_half_transparent(label):
+    p = label.palette()
+    color = p.color(QPalette.WindowText)
+    color.setAlpha(255//2)
+    p.setColor(QPalette.WindowText, color)
+    label.setPalette(p)
+
+def EmptyPlaceholderWidget(parent=None):
+    label = QLabel('no results.\ntype something else', parent)
+    label.setAlignment(Qt.AlignCenter)
+    set_half_transparent(label)
+    return label
+
 class FilterableList(QListWidget, Filterable):
-    '''Implements Filterable as a standard list widget.'''
+    '''Implements Filterable as a standard list widget.
+    Shows placeholder when list is empty.'''
 
     NAVIGATION_KEYPRESSES = {
         Qt.Key_Up,
@@ -351,8 +371,29 @@ class FilterableList(QListWidget, Filterable):
         QListWidget.__init__(self)
         Filterable.__init__(self)
 
+        self.placeholder = EmptyPlaceholderWidget(self)
+        self.placeholder.hide()
+        set_grid_children(self,
+            grid=self.layout(),
+            children=(self.placeholder,),
+            positions=(Qt.AlignCenter,),
+        )
+
+    def addItem(self, *args, **kwargs):
+        super().addItem(*args, **kwargs)
+        self.placeholder.hide()
+
+    def clear(self):
+        # completely blank page looks bad; give a message
+        super().clear()
+        self.placeholder.show()
+
     def show_items(self, items):
         self.clear()
+        if len(items) == 0:
+            return
+
+        self.placeholder.hide()
         self.insertItems(0, (str(i) for i in items) )
         # self.insertItems(0, items)
         self.setCurrentRow(0)
@@ -523,6 +564,7 @@ class VersesPage(Page, QTextEdit, Filterable):
         self.setFont(font)
 
     def load_state(self, state):
+        # state = dict of verses in chapter
         self.verses = state
         self.show_all()
 
@@ -538,7 +580,7 @@ class VersesPage(Page, QTextEdit, Filterable):
         self.verticalScrollBar().setValue(scroll_pos)
 
     def filter_items(self, pattern):
-        # highlight given verse number
+        # highlight verse, given number
 
         # make sure the verse is there
         if pattern not in self.verses.keys():
@@ -653,14 +695,8 @@ def dict_where_keys(d, filter_key_fn):
 
 OPACITY_TEMPLATE = '<span style="color:rgba(222, 226, 247, 0.5);">{}</span>'
 
-# class SearchResultItem(QListWidgetItem):
-#     def __init__(self, scripture, text):
-#         super().__init__(parent=None, QListWidgetItem.UserType)
-#         self.scripture = scripture
-#         self.text = text
-
 class SearchResultDelegate(QStyledItemDelegate):
-    # custom rendering of an item in a list widget
+    # custom rendering of an scripture item in a list widget
 
     def paint(self, painter, option, index):
         # turns item text into title and subtitle.
@@ -678,7 +714,7 @@ class SearchResultDelegate(QStyledItemDelegate):
         subtitle = '\n' + scripture['text']
 
         given_rect = option.rect    # from size hint
-        states = option.state        # bitwise OR of QStyle.State_ flags
+        states = option.state       # bitwise OR of QStyle.State_ flags
 
         if states & QStyle.State_Selected:
             palette = QApplication.palette()
@@ -708,9 +744,10 @@ class SearchResultDelegate(QStyledItemDelegate):
         # default height seems to have been n*line_height of str in option.data(Qt.DisplayRole)
 
         s = QSize()
-        line_height = QFontMetrics(option.font).height()
+        font_metrics = QFontMetrics(option.font)
+        line_height = font_metrics.height()
         extra = 4   # produces more comfortable line spacing
-        s.setHeight(2*line_height + extra)
+        s.setHeight(2*line_height + extra)  # 1 line for title, subtitle each
         s.setWidth(0)   # don't allow horiz scroll when there's wide items
         return s
 
@@ -723,21 +760,46 @@ class SearchResultsPage(Page, FilterableList):
         FilterableList.__init__(self)
 
         self.setItemDelegate(SearchResultDelegate(self))
+        # self.itemActivated.connect(self.on_result_item_selected)
+
+        # self.placeholder = EmptyPlaceholderWidget(self)
+        # layout = self.layout()
+        # layout.addWidget(self.placeholder, 0, 0, Qt.AlignCenter)
+        # self.setLayout(layout)
+        # self.show_empty()
 
     def load_state(self, state):
+        # state = callable that produces iter of verses in desired scope
         self.verses_iter_factory = state
-        scope = str(data.curr_scripture)
-        self.nav.set_title('Search in ' + scope)
+        # scope = str(data.curr_scripture)
+        self.nav.set_title('Search')    # scope apparent from results list, no need to clutter title here
 
     def show_all(self):
         # show nothing when no search filter
         self.clear()
 
+    # def clear(self):
+    #     # completely blank page looks bad; give a message
+    #     super().clear()
+    #     # self.show_empty()
+    #     self.placeholder.show()
+
+    # def addItem(self, *args, **kwargs):
+    #     super().addItem(*args, **kwargs)
+    #     # if self.empty_feedback_widget.isVisible():
+    #     self.placeholder.hide()
+
     def show_items(self, items):
         # replaced by custom filter_items
         return
 
+    def on_result_item_selected(self, item):
+        # callback for list widget selection
+        d = item.data(Qt.DisplayRole)
+        self.nav.to(SearchedVersePage, state=d['location'])
+
     def filter_items(self, search_text):
+        # show matches of search in a list
         try:
             re.compile(search_text)
         except re.error:
@@ -746,11 +808,15 @@ class SearchResultsPage(Page, FilterableList):
             return
 
         self.clear()
+
         for n, verse in self.verses_iter_factory():
             match = re.search(search_text, verse)
             if match is not None:
                 item = QListWidgetItem(self)
-                item.setData(Qt.DisplayRole, {'location': n, 'text': verse.replace('\n', '')})
+                item.setData(Qt.DisplayRole, {
+                    'location': n,
+                    'text': verse.replace('\n', ''),
+                })
                 self.addItem(item)
 
                 # self.addItem(f'{n}\n' + verse.replace('\n', ' '))    # separate header from content with \n
