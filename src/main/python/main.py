@@ -151,7 +151,6 @@ class PageManager(QStackedWidget):
         PageManager(PageA, PageB, ...)'''
 
         super().__init__(parent)
-        # self.parent = parent
 
         self._pages = {}
         for _type in page_types:
@@ -223,7 +222,7 @@ class Filterable(QWidget):
     Main inspiration from fman.
 
     Holds self.all_items, an iterable.
-    Need to implement show_items(items) at minimum.
+    Subclasser needs to implement show_items(items) at minimum.
     filter_items(search_text) good to override filtering method.'''
 
     def __init__(self):
@@ -247,13 +246,12 @@ class Filterable(QWidget):
         self.show_items( index_first_search(self.all_items, search_text) )
 
     def search_is_active(self):
+        # convenience
         return self.searchbox.isVisible()
 
     def keyPressEvent(self, event):
+        # determine activating, using, and deactivint searchbox
         keypress = event.key()
-        # if keypress in Filterable.NAVIGATION_KEYPRESSES:
-        #     event.ignore()
-        #     return
 
         # active searchbox, middle of typing
         if self.search_is_active():
@@ -275,7 +273,7 @@ def key_produces_symbol(key):
     #     key in (Qt.Key_Shift, Qt.Key_CapsLock)
     # )
     # return bool( event.text() )
-    return key < Qt.Key_Escape  # renderable symbols I think
+    return key < Qt.Key_Escape
 
 def index_first_search(items, search_text):
     # matches that contain search_text, with matches at index 0 ordered first
@@ -332,17 +330,20 @@ class SearchBox(QLineEdit):
             # print(text)
 
     def activate(self, initial_text):
+        # show and start searching
         self.setText(initial_text)
-        self.on_change(initial_text) # covers bug where first key of search wouldn't cause action
+        self.on_change(initial_text) # first key of search needs to call change too
         self.show()
         # self.setFocus()
 
     def deactivate(self):
+        # hide and stop searching
         self.hide()
         # self.clear()
         self.filterable.show_all()
 
 class FilterableList(QListWidget, Filterable):
+    '''Implements Filterable as a standard list widget.'''
 
     NAVIGATION_KEYPRESSES = {
         Qt.Key_Up,
@@ -363,10 +364,8 @@ class FilterableList(QListWidget, Filterable):
         self.setCurrentRow(0)
 
     def keyPressEvent(self, event):
-        # if not self.search_is_active() and event.key() == Qt.Key_Backspace:
-        #     self.nav.back()
-        #     return
         if event.key() in FilterableList.NAVIGATION_KEYPRESSES:
+            # save up, down, enter for default list widget behavior.
             QListWidget.keyPressEvent(self, event)
             return
 
@@ -375,6 +374,7 @@ class FilterableList(QListWidget, Filterable):
 ### --- using generalized widgets
 
 class BooksPage(Page, FilterableList):
+    '''Implements list from Gen->Rev and connects to next chapters page.'''
 
     def __init__(self):
         Page.__init__(self)
@@ -413,11 +413,12 @@ class BooksPage(Page, FilterableList):
         self.show_all()     # reset any searches when naving back
 
     def keyPressEvent(self, event):
-        if not self.search_is_active() and event.key() == Qt.Key_Backspace:
-            self.nav.back()
-            self.nav.set_title(data.curr_scripture.decrement())
-        else:
-            FilterableList.keyPressEvent(self, event)
+        # if not self.search_is_active() and event.key() == Qt.Key_Backspace:
+        #     self.nav.back()
+        #     self.nav.set_title(data.curr_scripture.decrement())
+        # else:
+        #     FilterableList.keyPressEvent(self, event)
+        FilterableList.keyPressEvent(self, event)   # this is 0th page; don't need nav back
 
         # if keypress == ctrl_F:
         #     self.nav.to(SearchResultsPage, state='scope:')
@@ -428,6 +429,10 @@ class BooksPage(Page, FilterableList):
     #     self.list_items = state # book names
 
 class ChaptersPage(Page, FilterableList):
+    '''Implements list of chapters 1->n for current book and connects to next verses page.
+
+    Uses IO/threading for book logic; probably not needed for small book jsons.
+    Maybe somewhat useful for one big json before it's loaded into memory?'''
 
     def __init__(self):
         Page.__init__(self)
@@ -470,6 +475,8 @@ class ChaptersPage(Page, FilterableList):
         #     self.nav.to(SearchResultsPage, state='scope:')
 
 class VersesPage(Page, QTextEdit, Filterable):
+    '''Formats dict of verses {num: text} into text display.
+    Filterable by verse num, isolating and highlighting text.'''
 
     def __init__(self):
         Page.__init__(self)
@@ -549,13 +556,14 @@ class VersesPage(Page, QTextEdit, Filterable):
         #     self.nav.to(SearchResultsPage, state='scope:')
 
 def format_to_html(verses):
+    # returns numbers spaced and bolded before verse texts.
     return '   '.join(      # 2 nbsps post-num and 4 spaces pre-num looks good
         f'<b>{num}</b>\xa0\xa0{verse}'     # spacing probably changes with diff fonts
         for num, verse in verses.items()
     )
 
 def to_plaintext(html):
-    # used to match QTextEdit text content
+    # used to precisely match QTextEdit text content (for searching index)
     replaced = html.replace('\xa0', ' ').replace('\n', ' ')
     tagless = ''.join( strip_tags(replaced) )
     return tagless
@@ -586,6 +594,7 @@ def dict_where_keys(d, filter_key_fn):
 OPACITY_TEMPLATE = '<span style="color:rgba(222, 226, 247, 0.5);">{}</span>'
 
 def MarginParent(widget):
+    # create parent with small margins around widget
     parent = QWidget()
     widget.setParent(parent)
 
@@ -599,18 +608,12 @@ def MarginParent(widget):
 # --- run
 
 if __name__ == '__main__':
-    init_data()
+    book_logic.init_data()
     app = QApplication([])
     set_theme(app)
 
-    # add margins
     main = MarginParent(PageManager(BooksPage, ChaptersPage, VersesPage))
     main.show()
-
-    # no margins but worked
-    # main = PageManager(BooksPage, ChaptersPage, VersesPage)
-    # main.show()
-
 
     # if first time loading app
     if len( os.listdir(constants.BOOK_DIR) ) <= 1: # gitignore takes up space

@@ -18,13 +18,13 @@ Download the [latest release](https://github.com/wong-justin/quick-bible/release
 - Search verses (ctrl-f)
   - search by regex
   - local search in book or chapter context?
-- Resizable window
 - Fix Psalms superscriptions and [other extras]
 - Shortcut to books pane
 - ctrl-c copy text
 - ctrl-up/down navigate verses
 - abbreviate books in window title?
 - join all content into one json?
+- replace backticks with hyphens (or nothing), and replace newlines with nothing (during initial download and parsing)?
 
 - make inital setup script run automatically [during installer setup?](https://nsis.sourceforge.io/Simple_tutorials)
 - versioning: include in a "help" section for app? or just incl elsewhere, like in exe name or adjacent json
