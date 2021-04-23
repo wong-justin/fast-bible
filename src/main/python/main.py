@@ -9,7 +9,8 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QPalette, QColor, QFont, QFontDatabase, QIcon
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QPushButton,
     QLineEdit, QTextEdit, QLabel, QListWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
-    QSpacerItem, QAbstractSlider, QDialog, QProgressDialog)
+    QSpacerItem, QAbstractSlider, QDialog, QProgressDialog, QTableWidget, QTableWidgetItem,
+    QListWidgetItem, QStyledItemDelegate, QStyle)
 
 from types import SimpleNamespace
 import re
@@ -654,9 +655,81 @@ OPACITY_TEMPLATE = '<span style="color:rgba(222, 226, 247, 0.5);">{}</span>'
 
 ### --- new feature
 
-def iter_ending_in_none(it):
-    yield from it
-    yield None
+class SearchResultDelegate(QStyledItemDelegate):
+    # custom item view in a list widget
+
+    def paint(self, painter, option, index):
+        # show emphasis on title and normal text subtitle on line below
+        # print(index.row(), index.column(), index.parent())
+
+        if not index.isValid():
+            print('invalid index', index.row(), index.parent())
+            return
+
+        painter.save()
+        # m = index.model() # abstract item model
+        item_data = index.data(Qt.DisplayRole) # default data, 0
+        title, subtitle = item_data.split('\n')
+        title = title + '\n'
+        subtitle = '\n' + subtitle
+        if not title:
+            print('title missing', item_data)
+
+        # self.initStyleOption(option, index)
+        # option = SearchResultDelegate.initStyleOption(option, index)
+        given_rect = option.rect    # from size hint
+
+        # rect.setHeight(2*rect.height())
+
+        # font = index.data(Qt.FontRole)
+        # print(font)
+        state = option.state    # bitwise OR combination of QStyle.State_ flags
+
+        palette = QApplication.palette() # text, highlight, and highlightedtext
+
+        if state & QStyle.State_Selected:# _active, _selected, _hasfocus
+            painter.setPen(palette.color(QPalette.HighlightedText))
+            painter.fillRect(given_rect, palette.color(QPalette.Highlight))
+        # elif state & QStyle.State_None:
+            # painter.setPen(palette.color(QPalette.Text))
+            # painter.setPen(palette.color(index.role()))
+
+        # x, y = rect.x(), rect.y()
+        # style = QApplication.style()
+        # text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, option)
+        # style.drawItemText(painter, rect, option.displayAlignment, palette, True, subtitle)
+
+        # add a little extra margin to text
+        text_rect = given_rect.adjusted(3, 3, -3, -3)
+
+        # draw title text
+        font = QFont(option.font)
+        font.setWeight(QFont.Bold)
+        painter.setFont(font)
+        painter.drawText(text_rect, option.displayAlignment, title)
+        #
+
+
+        # draw subtitle text
+        painter.setFont(option.font)    # old font
+        # painter.translate(2, 2)
+        painter.drawText(text_rect, option.displayAlignment, subtitle)
+
+        # painter.drawRect(rect)
+
+        # reset to not mess up future painting
+        painter.restore()
+        # QStyledItemDelegate.paint(self, painter, option, index)
+
+    def sizeHint(self, option, index):
+        # fit to width, creating ellipsis on long text with no need for horiz scroll
+        s = QSize()
+        #
+        old_height = super().sizeHint(option, index).height()    # I think it creates height from newlines in index.data
+        extra = 4
+        s.setHeight(old_height + extra)
+        s.setWidth(0)
+        return s
 
 class SearchResultsPage(Page, FilterableList):
     # maybe use a qtreeview instead of qlistwidget?
@@ -666,13 +739,22 @@ class SearchResultsPage(Page, FilterableList):
         Page.__init__(self)
         FilterableList.__init__(self)
 
+        self.setItemDelegate(SearchResultDelegate(self))
+
+
+    # def sizeHint(self):
+    #     s = QSize()
+    #     s.setHeight(QListWidget.sizeHint(self).height())
+    #     s.setWidth(self.sizeHintForColumn(0))
+    #     return s
+
     def load_state(self, state):
         self.verses_iter_factory = state
         scope = str(data.curr_scripture)
         self.nav.set_title('Search in ' + scope)
 
     def show_all(self):
-        # don't want to show all verses with no search
+        # show nothing when no search filter
         self.clear()
 
     def show_items(self, items):
@@ -680,16 +762,28 @@ class SearchResultsPage(Page, FilterableList):
         return
 
     def filter_items(self, search_text):
-        # pattern = re.compile(search_text)
-        # print('filtering')
+        try:
+            re.compile(search_text)
+        except re.error:
+            # invalid search pattern
+            self.clear()
+            return
+
         self.clear()
+        i = 0
         for n, verse in self.verses_iter_factory():
-            # if self.new_search:
-            #     self.new_search = False
-            #     break
-            # if re.match(pattern, verse):
-            if search_text in verse:
-                self.addItem(f'{n}\n' + verse)     # QtListWidget method
+            match = re.search(search_text, verse)
+            if match is not None:
+                self.addItem(f'{n}\n' + verse.replace('\n', ' '))    # separate header from content with \n
+                # item = QListWidgetItem(self)
+                # self.addItem(item)
+                # lbl = QLabel('hi')
+                # self.setItemWidget(item, lbl)
+
+                i += 1
+
+            # if search_text in verse:
+            #     self.addItem(f'{n}\n' + verse)     # QtListWidget method
 
     def keyPressEvent(self, event):
         if not self.search_is_active() and event.key() == Qt.Key_Backspace:

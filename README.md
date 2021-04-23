@@ -34,6 +34,8 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
     - app checks github page for new release maybe
 - prevent slow loading + white dialog on initial setup download?
 
+- generalize for other languages
+
 <details>
 <summary>steps to fbs-ify a pyqt app on windows</summary>
 
