@@ -12,15 +12,8 @@ def _read_csv(fp):
 
 appctxt = ApplicationContext()
 
-# paths = SimpleNamespace(
-#     BOOK_DIR = appctxt.get_resource('data/cleaned/'),
-#     BOOK_FP_TEMPLATE = BOOK_DIR + '/{}.json'
-# )
 BOOK_DIR = appctxt.get_resource('data/cleaned/')
 BOOK_FP_TEMPLATE = BOOK_DIR + '/{}.json'
-# BOOK_FILENAME_TEMPLATE = '{}.json'
-# BOOK_FP_TEMPLATE = '../resources/data/cleaned/{}.json'
-# BOOK_FP_TEMPLATE = appctxt.get_resource('data/cleaned/{}.json')
 
 CHAPTER_COUNTS = {
     book_name: int(count)

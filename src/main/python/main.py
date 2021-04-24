@@ -20,42 +20,19 @@ import time
 import os
 import json
 
-# class ScriptureLocation:
-#     '''Abstraction to divide scripture into buildable parts.
-#
-#     s = ScriptureLocation()
-#     # some scope...
-#         s.increment(book='Genesis')
-#     # different scope...
-#         s.increment(chapter=1)
-#     # and another
-#         s.decrement()'''
-#
-#     def __init__(self, *components):
-#         # Scripture('Genesis', 3, 15)
-#         # Scripture('Jude')
-#         self.components = components
-#
-#     def increment(self, book=None, chapter=None, verse=None):
-#         # just add the kwarg that makes sense, no need to validate
-#         self.components.append(book or chapter or verse)
-#         return str(self)
-#
-#     def decrement(self):
-#         if self.components:
-#             self.components.pop(-1)
-#         return str(self)
-#
-#     def __repr__(self):
-#         template = {
-#             0: 'Bible',
-#             1: '{}',
-#             2: '{} {}',
-#             3: '{} {}:{}'
-#         }[ len(self.components) ]
-#         return template.format(*self.components)
-
 class Scripture:
+    '''Abstraction to divide scripture into sequential parts.
+
+    Scripture().inc('Psalms').inc(83).inc(18)
+    >>> 'Psalms 83:18'
+
+    Scripture().inc('Jude').inc(4)
+    >>> 'Jude 4'
+
+    Scripture('Genesis', 3, 15).dec().dec()
+    >>> 'Genesis'
+    '''
+
     _templates = {
         0: 'Bible',
         1: '{}',
@@ -87,18 +64,6 @@ class Scripture:
     def __repr__(self):
         template = Scripture._templates[ len(self.parts) ]
         return template.format(*self.parts)
-
-    # @property
-    # def book(self):
-    #     return self.parts[0]
-    #
-    # @property
-    # def chapter(self):
-    #     return self.parts[1]
-    #
-    # @property
-    # def verse(self):
-    #     return self.parts[-1]
 
 data = SimpleNamespace(
     bible=None,
@@ -210,7 +175,7 @@ class PageManager(QStackedWidget):
         self._history = []   # page ids, not page objects themselves
         self._curr_id, self.curr_page = list(self._pages.items())[0]  # the first page in given args
 
-    def to(self, new_id, state=None):#, title=''):
+    def to(self, new_id, state=None):#, title=None):
         '''Used by a page to nav to another page, communicating any new data with state.
 
         new_id: class of page to nav to. Must be one given in constructor.
@@ -229,16 +194,12 @@ class PageManager(QStackedWidget):
 
         self._set_curr_page(new_id, new_page)
 
-        # print([_id.__name__ for _id in self._history])
-
     def back(self):
         '''Go to previous page. Used in default Page keyPressEvent listener.'''
         if self._history:
             prev_id = self._history.pop()
             prev_page = self._pages[prev_id]
             self._set_curr_page(prev_id, prev_page)
-
-        # print([_id.__name__ for _id in self._history])
 
     def _set_curr_page(self, _id, page):
         self._curr_id = _id
@@ -251,14 +212,8 @@ class PageManager(QStackedWidget):
         self.setWindowTitle(_str)
         self.parentWidget().setWindowTitle(_str)
 
-# def set_grid_children(parent, grid=None, children=[], positions=[]):
-#     g = MarginGrid() if not grid else grid
-#     for child, position in zip(children, positions):
-#         g.addWidget(child, 0, 0, position)
-#     parent.setLayout(g)
-
 def set_grid_child(parent, child, position, grid=None):
-    # less verbose and more used
+    # supplies grid layout if not specified
     g = MarginGrid() if not grid else grid
     g.addWidget(child, 0, 0, position)
     parent.setLayout(g)
@@ -466,7 +421,8 @@ class FilterableList(QListWidget, Filterable):
 ### --- using generalized widgets
 
 class BooksPage(Page, FilterableList):
-    '''Implements list from Gen->Rev and connects to next chapters page.'''
+    '''Lists books from Gen->Rev and connects to next chapters page.
+    First page of application.'''
 
     def __init__(self):
         Page.__init__(self)
@@ -479,25 +435,13 @@ class BooksPage(Page, FilterableList):
     def on_book_selected(self, book_item):
         # book_item is QtListItem
         book = book_item.text()
-        # start_loading_book(book)    # file io takes a bit, so start now in other thread
-
-        # self.nav.to(ChaptersPage, state=100) # for testing
-        # start_loading_book(book)    # old method
         # show content
         if has_chapters(book):
             # go to chapter screen
             self.nav.to(ChaptersPage, state=get_num_chapters(book))
         else:
             # skip to verses screen
-
-            # new method
-            self.nav.to(VersesPage, state=data.bible[book])
-
-            # old method
-            # wait_for_loaded_book()
-            # verses = get_current_book()
-            # self.nav.to(VersesPage, state=verses)
-
+            self.nav.to(VersesPage, state=data.bible[book]) # or get_bible_content(data.curr_scripture.inc(bok))
 
         # widget cleanup
         self.nav.set_title(data.curr_scripture.inc(book, inplace=True))
@@ -505,23 +449,14 @@ class BooksPage(Page, FilterableList):
         self.show_all()     # reset any searches when naving back
 
     def keyPressEvent(self, event):
-        # if not self.search_is_active() and event.key() == Qt.Key_Backspace:
-        #     self.nav.back()
-        #     self.nav.set_title(data.curr_scripture.decrement())
-        # else:
-        #     FilterableList.keyPressEvent(self, event)
         if ctrl_f_event(event):
-            chapters = get_current_book()
             self.nav.to(SearchResultsPage, state=lambda: iter_verses_in_whole_bible())
             self.searchbox.deactivate()
         else:
             FilterableList.keyPressEvent(self, event)   # this is 0th page; don't need nav back
 
 class ChaptersPage(Page, FilterableList):
-    '''Implements list of chapters 1->n for current book and connects to next verses page.
-
-    Uses IO/threading for book logic; probably not needed for small book jsons.
-    Maybe somewhat useful for one big json before it's loaded into memory?'''
+    '''List of chapter numbers 1->n for given book and connects to next verses page.'''
 
     def __init__(self):
         Page.__init__(self)
@@ -539,15 +474,8 @@ class ChaptersPage(Page, FilterableList):
         data.curr_scripture.inc(chapter, inplace=True)
 
         # show the content
-        # new method
-        # book = data.curr_scripture.book
         verses = get_bible_content(data.curr_scripture)
         self.nav.to(VersesPage, state=verses)
-
-        # old method
-        # wait_for_loaded_book()
-        # verses = get_chapter(chapter)
-        # self.nav.to(VersesPage, state=verses)
 
         # widget cleanup
         self.nav.set_title(str(data.curr_scripture))
@@ -565,37 +493,7 @@ class ChaptersPage(Page, FilterableList):
         else:
             FilterableList.keyPressEvent(self, event)
 
-# def read_book(book_name):
-#     fp = constants.BOOK_FP_TEMPLATE.format(book_name)
-#     with open(fp, 'r') as file:
-#         return json.load(file)
-
-# def iter_all_bible_verses():
-#     for book_name in book_logic.data.BOOK_NAMES:
-#         # book = read_book(book_name)
-#         book = data.bible[book_name]
-#         if has_chapters(book_name):
-#             chapters = book
-#             yield from iter_verses(book_name, chapters)
-#         else:
-#             verses = book
-#             yield from (
-#                 (f'{book_name} {n}',v)
-#                 for n,v in verses.items()
-#             )
-
-# def iter_verses(book_name, chapters):
-#     # for verses in chapters.values():
-#     #     yield from verses.items()
-#
-#     # chapters are out of order in file, ugh. fix setup script later
-#     chapter_nums = (str(i) for i in range(1, len(chapters)+1))
-#     for c in chapter_nums:
-#         verses = chapters[c]
-#         yield from (
-#             (f'{book_name} {c}:{n}',v)
-#             for n,v in verses.items()
-#         )
+### --- iterating verses depending on scripture location scope
 
 def iter_verses_in_whole_bible():
     for book_name in book_logic.data.BOOK_NAMES:
@@ -640,11 +538,7 @@ def get_bible_content(scripture):
         scope = scope[component]
     return scope
 
-# def verses_around_scripture(scripture):
-#     scope = data.bible
-#     for component in scripture.dec().parts:
-#         scope = scope[component]
-#     return scope
+### ---
 
 def ctrl_f_event(event):
     return event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_F
@@ -754,10 +648,9 @@ class VersesPage(Page, QTextEdit, Filterable):
 
             # search this chapter
             elif keypress == Qt.Key_F:
-                # scripture = data.current_scripture
                 self.nav.to(SearchResultsPage, state=lambda: scriptures_with_verses(data.curr_scripture, self.verses))
                 self.searchbox.deactivate()
-                # self.verticalScrollBar().setValue(0)    # scroll back to top
+                self.verticalScrollBar().setValue(0)    # scroll back to top
 
         # scroll
         elif keypress in (Qt.Key_Down, Qt.Key_Up):
@@ -769,7 +662,7 @@ class VersesPage(Page, QTextEdit, Filterable):
 
 def format_to_html(verses):
     # returns numbers spaced and bolded preceding verse content.
-    return '   '.join(      # 2 nbsps post-num and 4 spaces pre-num looks good
+    return '   '.join(          # 2 nbsps post-num and 4 spaces pre-num looks good, even
         f'<b>{num}</b>\xa0\xa0{verse}'     # spacing probably changes with diff fonts
         for num, verse in verses.items()
     )
@@ -796,17 +689,13 @@ def strip_tags(html):
                 yield c
 
 def dict_where_keys(d, filter_key_fn):
-    # result = dict()
-    # for key in d.keys():
-    #     if filter_key_fn(key):
-    #         result[key] = d[key]
-    # return result
     return {k:v for k,v in d.items() if filter_key_fn(k)}
 
 OPACITY_TEMPLATE = '<span style="color:rgba(222, 226, 247, 0.5);">{}</span>'
 
 class SearchResultDelegate(QStyledItemDelegate):
-    # custom rendering of an scripture item in a list widget
+    # custom list item rendering,
+    #  mainly just to format a title and subtitle while looking like default list widget item
 
     def paint(self, painter, option, index):
         # turns item text into title and subtitle.
@@ -862,8 +751,7 @@ class SearchResultDelegate(QStyledItemDelegate):
         return s
 
 class SearchResultsPage(Page, FilterableList):
-    '''Checks verses in scope for matches and shows results in list widget.
-    Displays matches as scripture + text.'''
+    '''Searches given verses by regex from searchbox and shows matches in list.'''
 
     def __init__(self):
         self.default_placeholder_msg = 'search regex:'
@@ -872,13 +760,11 @@ class SearchResultsPage(Page, FilterableList):
 
         self.setItemDelegate(SearchResultDelegate(self))
         # self.itemActivated.connect(self.on_result_item_selected)
-        self.fake_searchbox = SearchBox(None)   # illusion to for better communication to user;
-            # serves as extra prompt on empty screen
-        # set_grid_children(self,
-        #     grid=self.layout(),
-        #     children=(self.fake_searchbox,),
-        #     positions=(Qt.AlignRight | Qt.AlignBottom,)
-        # )
+
+        # dummy searchbox serves as visual prompt on empty screen
+        #  gives better communication to user
+        self.fake_searchbox = SearchBox(None)
+
         set_grid_child(self, self.fake_searchbox, Qt.AlignRight | Qt.AlignBottom, grid=self.layout())
         self.fake_searchbox.show()
 
@@ -913,7 +799,6 @@ class SearchResultsPage(Page, FilterableList):
         try:
             re.compile(search_text)
         except re.error:
-            # invalid search pattern
             self.placeholder.setText('invalid regex')
             self.clear()
             return
@@ -930,11 +815,7 @@ class SearchResultsPage(Page, FilterableList):
                 })
                 self.addItem(item)
 
-                # self.addItem(f'{n}\n' + verse.replace('\n', ' '))    # separate header from content with \n
-
-            # if search_text in verse:
-            #     self.addItem(f'{n}\n' + verse)     # QtListWidget method
-
+        # when finished iter and no matches
         if QListWidget.count(self) == 0:
             self.placeholder.setText('no results')
 
@@ -959,6 +840,7 @@ def MarginParent(widget):
     return parent
 
 def MarginGrid():
+    # returns grid layout with small margin around outside
     layout = QGridLayout()
     layout.setContentsMargins(2,2,2,2)
     return layout
