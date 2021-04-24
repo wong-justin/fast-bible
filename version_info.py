@@ -41,12 +41,12 @@ VSVersionInfo(
       StringTable(
         '040904B0',
         [StringStruct('CompanyName', 'J. Wong'),
-        StringStruct('FileDescription', 'Quick Bible'),
+        StringStruct('FileDescription', 'Fast Bible'),
         StringStruct('FileVersion', '0.1.0.0'),
-        StringStruct('InternalName', 'Quick Bible'),
+        StringStruct('InternalName', 'Fast Bible'),
         StringStruct('LegalCopyright', '© J. Wong. All rights reserved.'),
-        StringStruct('OriginalFilename', 'Quick Bible.exe'),
-        StringStruct('ProductName', 'Quick Bible'),
+        StringStruct('OriginalFilename', 'Fast Bible.exe'),
+        StringStruct('ProductName', 'Fast Bible'),
         StringStruct('ProductVersion', '0.1.0.0')])
       ]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
