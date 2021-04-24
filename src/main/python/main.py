@@ -751,7 +751,7 @@ class SearchResultDelegate(QStyledItemDelegate):
         s = QSize()
         font_metrics = QFontMetrics(option.font)
         line_height = font_metrics.height()
-        extra = 4   # produces more comfortable line spacing
+        extra = 4   # produces more comfortable line spacing; 'elbow room'
         s.setHeight(2*line_height + extra)  # 1 line for title, subtitle each
         s.setWidth(0)   # don't allow horiz scroll when there's wide items
         return s
@@ -767,7 +767,8 @@ class SearchResultsPage(Page, FilterableList):
 
         self.setItemDelegate(SearchResultDelegate(self))
         # self.itemActivated.connect(self.on_result_item_selected)
-        self.fake_searchbox = SearchBox(None)   # to appear on empty screen
+        self.fake_searchbox = SearchBox(None)   # illusion to for better communication to user;
+            # serves as extra prompt on empty screen
         set_grid_children(self,
             grid=self.layout(),
             children=(self.fake_searchbox,),
