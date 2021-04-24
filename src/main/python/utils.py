@@ -3,7 +3,7 @@
 from book_logic import *
 from shared import *
 
-from PyQt5.QtCore import Qt, QSize, QRect
+from PyQt5.QtCore import Qt, QSize, QRect, QSettings
 from PyQt5.QtGui import QPalette, QColor, QFont, QFontDatabase, QIcon, QFontMetrics
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QPushButton,
     QLineEdit, QTextEdit, QLabel, QListWidget, QHBoxLayout, QVBoxLayout, QGridLayout,

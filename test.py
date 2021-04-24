@@ -1,5 +1,5 @@
 
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt, QSize, QSettings
 from PyQt5.QtGui import QPalette, QColor, QFont, QFontDatabase, QIcon
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QPushButton,
     QLineEdit, QTextEdit, QLabel, QListWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
@@ -248,6 +248,28 @@ def time_methods(*fns, n=1):
     for fn, t in zip(fns, results):
         print(type(fn).__name__, t)
 
+def test_window_sizing():
+    # https://gist.github.com/dgovil/d83e7ddc8f3fb4a28832ccc6f9c7f07b
+
+    class W(QDialog):
+        def __init__(self):
+            super().__init__()
+
+            self.settings = QSettings('Wong', 'test app')
+            default = bytes('', encoding='utf-8')
+            geometry = self.settings.value('geometry', default)
+            self.restoreGeometry(geometry)
+
+        def closeEvent(self, event):
+            geometry = self.saveGeometry()
+            self.settings.setValue('geometry', geometry)
+
+            super().closeEvent(event)
+
+    show_widget(W)
+
+
+
 def show_alternate_classes(**kwargs):
 
     import main
@@ -272,7 +294,8 @@ def show_widget(make_widget):
     # sys.exit(exit_code)
 
 if __name__ == '__main__':
-    test_list_widget_item_adding_performance()
+    test_window_sizing()
+    # test_list_widget_item_adding_performance()
     # test_list_widget_items_add()
     # test_iter_performance()
     # test_alternate_search_results()

@@ -351,6 +351,27 @@ class SearchResultsPage(Page, FilterableList):
         else:
             FilterableList.keyPressEvent(self, event)
 
+class Main(QWidget):
+    def __init__(self, child):
+        super().__init__()
+
+        layout = MarginGrid()
+        layout.addWidget(child, 0, 0)
+        self.setLayout(layout)
+
+        child.setParent(self)
+
+        self.settings = QSettings('FastBible', 'FastBible')
+        default = bytes('', encoding='utf-8')
+        geometry = self.settings.value('geometry', default)
+        self.restoreGeometry(geometry)
+
+    def closeEvent(self, event):
+        geometry = self.saveGeometry()
+        self.settings.setValue('geometry', geometry)
+
+        super().closeEvent(event)
+
 # --- run
 
 if __name__ == '__main__':
@@ -359,7 +380,7 @@ if __name__ == '__main__':
 
     init_data()
 
-    main = MarginParent(PageManager(BooksPage, ChaptersPage, VersesPage, SearchResultsPage))
+    main = Main(PageManager(BooksPage, ChaptersPage, VersesPage, SearchResultsPage))
     main.setWindowTitle('Bible')    # initial title to override fbs default
     main.show()
 
