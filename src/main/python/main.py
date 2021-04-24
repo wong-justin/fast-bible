@@ -20,42 +20,89 @@ import time
 import os
 import json
 
-class ScriptureLocation:
-    '''Abstraction to divide scripture into buildable parts.
+# class ScriptureLocation:
+#     '''Abstraction to divide scripture into buildable parts.
+#
+#     s = ScriptureLocation()
+#     # some scope...
+#         s.increment(book='Genesis')
+#     # different scope...
+#         s.increment(chapter=1)
+#     # and another
+#         s.decrement()'''
+#
+#     def __init__(self, *components):
+#         # Scripture('Genesis', 3, 15)
+#         # Scripture('Jude')
+#         self.components = components
+#
+#     def increment(self, book=None, chapter=None, verse=None):
+#         # just add the kwarg that makes sense, no need to validate
+#         self.components.append(book or chapter or verse)
+#         return str(self)
+#
+#     def decrement(self):
+#         if self.components:
+#             self.components.pop(-1)
+#         return str(self)
+#
+#     def __repr__(self):
+#         template = {
+#             0: 'Bible',
+#             1: '{}',
+#             2: '{} {}',
+#             3: '{} {}:{}'
+#         }[ len(self.components) ]
+#         return template.format(*self.components)
 
-    s = ScriptureLocation()
-    # some scope...
-        s.increment(book='Genesis')
-    # different scope...
-        s.increment(chapter=1)
-    # and another
-        s.decrement()'''
+class Scripture:
+    _templates = {
+        0: 'Bible',
+        1: '{}',
+        2: '{} {}',
+        3: '{} {}:{}'
+    }
 
-    def __init__(self):
-        self.components = []
+    def __init__(self, *parts):
+        self.parts = list(parts)
 
-    def increment(self, book=None, chapter=None, verse=None):
-        # just add the kwarg that makes sense, no need to validate
-        self.components.append(book or chapter or verse)
-        return str(self)
+    def dec(self, inplace=False):
+        if inplace:
+            if self.parts:
+                self.parts.pop(-1)
+            return str(self)
 
-    def decrement(self):
-        if self.components:
-            self.components.pop(-1)
-        return str(self)
+        if self.parts:
+            return Scripture(self.parts[:-1])
+        else:
+            return Scripture()
+
+    def inc(self, book=None, chapter=None, verse=None, inplace=False):
+        if inplace:
+            self.parts.append(book or chapter or verse)
+            return str(self)
+        else:
+            return Scripture(*self.parts, book or chapter or verse)
 
     def __repr__(self):
-        template = {
-            0: 'Bible',
-            1: '{}',
-            2: '{} {}',
-            3: '{} {}:{}'
-        }[ len(self.components) ]
-        return template.format(*self.components)
+        template = Scripture._templates[ len(self.parts) ]
+        return template.format(*self.parts)
+
+    # @property
+    # def book(self):
+    #     return self.parts[0]
+    #
+    # @property
+    # def chapter(self):
+    #     return self.parts[1]
+    #
+    # @property
+    # def verse(self):
+    #     return self.parts[-1]
 
 data = SimpleNamespace(
-    # bible=load_bible_json(),
-    curr_scripture=ScriptureLocation(),
+    bible=None,
+    curr_scripture=Scripture(),
 )
 
 def set_theme(app):
@@ -204,10 +251,16 @@ class PageManager(QStackedWidget):
         self.setWindowTitle(_str)
         self.parentWidget().setWindowTitle(_str)
 
-def set_grid_children(parent, grid=None, children=[], positions=[]):
+# def set_grid_children(parent, grid=None, children=[], positions=[]):
+#     g = MarginGrid() if not grid else grid
+#     for child, position in zip(children, positions):
+#         g.addWidget(child, 0, 0, position)
+#     parent.setLayout(g)
+
+def set_grid_child(parent, child, position, grid=None):
+    # less verbose and more used
     g = MarginGrid() if not grid else grid
-    for child, position in zip(children, positions):
-        g.addWidget(child, 0, 0, position)
+    g.addWidget(child, 0, 0, position)
     parent.setLayout(g)
 
 class Filterable(QWidget):
@@ -221,10 +274,11 @@ class Filterable(QWidget):
     def __init__(self):
         self.searchbox = SearchBox(self)
 
-        set_grid_children(self,
-            children=(self.searchbox,),
-            positions=(Qt.AlignRight | Qt.AlignBottom,)
-        )
+        # set_grid_children(self,
+        #     children=(self.searchbox,),
+        #     positions=(Qt.AlignRight | Qt.AlignBottom,)
+        # )
+        set_grid_child(self, self.searchbox, Qt.AlignRight | Qt.AlignBottom)
         # overlay_bot_right(self, self.searchbox)
         # set_grid_layout(self, EmptyPlaceholderWidget(), self.searchbox)
         # self.placeholder = EmptyPlaceholderWidget(self)
@@ -375,11 +429,12 @@ class FilterableList(QListWidget, Filterable):
 
         self.placeholder = EmptyPlaceholderWidget(self, placeholder)
         self.placeholder.hide()
-        set_grid_children(self,
-            grid=self.layout(),
-            children=(self.placeholder,),
-            positions=(Qt.AlignCenter,),
-        )
+        # set_grid_children(self,
+        #     grid=self.layout(),
+        #     children=(self.placeholder,),
+        #     positions=(Qt.AlignCenter,),
+        # )
+        set_grid_child(self, self.placeholder, Qt.AlignCenter, grid=self.layout())
 
     def addItem(self, *args, **kwargs):
         super().addItem(*args, **kwargs)
@@ -427,7 +482,7 @@ class BooksPage(Page, FilterableList):
         # start_loading_book(book)    # file io takes a bit, so start now in other thread
 
         # self.nav.to(ChaptersPage, state=100) # for testing
-        start_loading_book(book)    # old method
+        # start_loading_book(book)    # old method
         # show content
         if has_chapters(book):
             # go to chapter screen
@@ -436,16 +491,16 @@ class BooksPage(Page, FilterableList):
             # skip to verses screen
 
             # new method
-            # self.nav.to(VersesPage, state=data.bible[book])
+            self.nav.to(VersesPage, state=data.bible[book])
 
             # old method
-            wait_for_loaded_book()
-            verses = get_current_book()
-            self.nav.to(VersesPage, state=verses)
+            # wait_for_loaded_book()
+            # verses = get_current_book()
+            # self.nav.to(VersesPage, state=verses)
 
 
         # widget cleanup
-        self.nav.set_title(data.curr_scripture.increment(book))
+        self.nav.set_title(data.curr_scripture.inc(book, inplace=True))
         self.searchbox.deactivate()
         self.show_all()     # reset any searches when naving back
 
@@ -457,18 +512,10 @@ class BooksPage(Page, FilterableList):
         #     FilterableList.keyPressEvent(self, event)
         if ctrl_f_event(event):
             chapters = get_current_book()
-            self.nav.to(SearchResultsPage, state=lambda: iter_all_bible_verses())
+            self.nav.to(SearchResultsPage, state=lambda: iter_verses_in_whole_bible())
             self.searchbox.deactivate()
         else:
             FilterableList.keyPressEvent(self, event)   # this is 0th page; don't need nav back
-
-        # if keypress == ctrl_F:
-        #     self.nav.to(SearchResultsPage, state='scope:')
-
-    # def load_state(self, state):
-    #     # book names are static so load one time, no need to change
-    #     # self.books_data = state
-    #     self.list_items = state # book names
 
 class ChaptersPage(Page, FilterableList):
     '''Implements list of chapters 1->n for current book and connects to next verses page.
@@ -489,68 +536,123 @@ class ChaptersPage(Page, FilterableList):
     def on_chapter_selected(self, chapter_item):
 
         chapter = chapter_item.text()
+        data.curr_scripture.inc(chapter, inplace=True)
 
         # show the content
         # new method
         # book = data.curr_scripture.book
-        # self.nav.to(VersesPage, state=data.bible[book][chapter])
+        verses = get_bible_content(data.curr_scripture)
+        self.nav.to(VersesPage, state=verses)
 
         # old method
-        wait_for_loaded_book()
-        verses = get_chapter(chapter)
-        self.nav.to(VersesPage, state=verses)
-        # self.nav.to(VersesPage, state=None) # for testing
+        # wait_for_loaded_book()
+        # verses = get_chapter(chapter)
+        # self.nav.to(VersesPage, state=verses)
 
         # widget cleanup
-        self.nav.set_title(data.curr_scripture.increment(chapter))
+        self.nav.set_title(str(data.curr_scripture))
         self.searchbox.deactivate()
         self.show_all()  # reset any searches when naving back
 
     def keyPressEvent(self, event):
         if not self.search_is_active() and event.key() == Qt.Key_Backspace:
             self.nav.back()
-            self.nav.set_title(data.curr_scripture.decrement())
+            self.nav.set_title(data.curr_scripture.dec(inplace=True))
         elif ctrl_f_event(event):
-            chapters = get_current_book()
-            book_name = data.curr_scripture.components[0]
-            self.nav.to(SearchResultsPage, state=lambda: iter_verses(book_name, chapters))
+            # book_scripture = data.curr_scripture
+            self.nav.to(SearchResultsPage, state=lambda: iter_verses_in_book(data.curr_scripture))
             self.searchbox.deactivate()
         else:
             FilterableList.keyPressEvent(self, event)
 
-def read_book(book_name):
-    fp = constants.BOOK_FP_TEMPLATE.format(book_name)
-    with open(fp, 'r') as file:
-        return json.load(file)
+# def read_book(book_name):
+#     fp = constants.BOOK_FP_TEMPLATE.format(book_name)
+#     with open(fp, 'r') as file:
+#         return json.load(file)
 
-def iter_all_bible_verses():
+# def iter_all_bible_verses():
+#     for book_name in book_logic.data.BOOK_NAMES:
+#         # book = read_book(book_name)
+#         book = data.bible[book_name]
+#         if has_chapters(book_name):
+#             chapters = book
+#             yield from iter_verses(book_name, chapters)
+#         else:
+#             verses = book
+#             yield from (
+#                 (f'{book_name} {n}',v)
+#                 for n,v in verses.items()
+#             )
+
+# def iter_verses(book_name, chapters):
+#     # for verses in chapters.values():
+#     #     yield from verses.items()
+#
+#     # chapters are out of order in file, ugh. fix setup script later
+#     chapter_nums = (str(i) for i in range(1, len(chapters)+1))
+#     for c in chapter_nums:
+#         verses = chapters[c]
+#         yield from (
+#             (f'{book_name} {c}:{n}',v)
+#             for n,v in verses.items()
+#         )
+
+def iter_verses_in_whole_bible():
     for book_name in book_logic.data.BOOK_NAMES:
-        book = read_book(book_name)
+        book_scripture = Scripture(book_name)
+
         if has_chapters(book_name):
-            chapters = book
-            yield from iter_verses(book_name, chapters)
+            yield from iter_verses_in_book(book_scripture)
         else:
-            verses = book
-            yield from (
-                (f'{book_name} {n}',v)
-                for n,v in verses.items()
-            )
+            verses = data.bible[book_name]
+            scriptures_with_verses(book_scripture, verses)
 
-def iter_verses(book_name, chapters):
-    # for verses in chapters.values():
-    #     yield from verses.items()
+def iter_verses_in_book(book_scripture):
+    # for book with chapters
 
-    # chapters are out of order in file, ugh. fix setup script later
-    chapter_nums = (str(i) for i in range(1, len(chapters)+1))
-    for c in chapter_nums:
-        verses = chapters[c]
-        yield from (
-            (f'{book_name} {c}:{n}',v)
-            for n,v in verses.items()
-        )
+    # book = data.bible[scripture.parts[0]]
+    book = get_bible_content(book_scripture)
+    for chapter_num, verses in book.items():
+        # chapter_scripture = book_scripture.inc(chapter_num)
+        yield from scriptures_with_verses(book_scripture.inc(chapter_num), verses)
+
+def iter_verses_in_chapter(chapter_scripture):
+    verses = get_bible_content(chapter_scripture)
+    yield from scriptures_with_verses(chapter_scripture, verses)
+
+def scriptures_with_verses(scripture, verses):
+    # chapter scripture, or possibly book scripture if book doesn't have chapters
+    yield from (
+        (scripture.inc(verse_num), text)
+        for verse_num, text in verses.items()
+    )
+
+# def verses_around_scripture(scripture):
+#     return get_bible_content(scripture.dec())
+#
+# def get_verse(scripture):
+#     return get_bible_content(scripture)
+
+def get_bible_content(scripture):
+    # returns content at finest scope of scripture
+    scope = data.bible
+    for component in scripture.parts:
+        scope = scope[component]
+    return scope
+
+# def verses_around_scripture(scripture):
+#     scope = data.bible
+#     for component in scripture.dec().parts:
+#         scope = scope[component]
+#     return scope
 
 def ctrl_f_event(event):
     return event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_F
+
+def set_font_size(widget, size):
+    font = widget.font()
+    font.setPointSize(11)
+    widget.setFont(font)
 
 class VersesPage(Page, QTextEdit, Filterable):
     '''Formats dict of verses {num: text} into text display.
@@ -563,9 +665,7 @@ class VersesPage(Page, QTextEdit, Filterable):
 
         # style
         self.setReadOnly(True)
-        font = self.font()
-        font.setPointSize(11)
-        self.setFont(font)
+        set_font_size(self, 11)
 
     def load_state(self, state):
         # state = dict of verses in chapter
@@ -638,26 +738,31 @@ class VersesPage(Page, QTextEdit, Filterable):
 
     def keyPressEvent(self, event):
         keypress = event.key()
+
         # nav back when backspacing without searchbox
         if not self.search_is_active() and keypress == Qt.Key_Backspace:
             self.nav.back()
-            self.nav.set_title(data.curr_scripture.decrement())
-            self.verticalScrollBar().setValue(0)    # back to top
+            self.nav.set_title(data.curr_scripture.dec(inplace=True))
+            self.verticalScrollBar().setValue(0)    # scroll back to top
 
         elif event.modifiers() == Qt.ControlModifier:
+
             # scripture up/down
             if keypress in (Qt.Key_Down, Qt.Key_Up):
                 diff = (1 if keypress == Qt.Key_Down else -1)
                 self.change_highlighted_scripture(diff)
+
             # search this chapter
             elif keypress == Qt.Key_F:
-                # self.nav.to(SearchResultsPage, state=iter(self.verses.items()))
-                self.nav.to(SearchResultsPage, state=lambda: self.verses.items())
+                # scripture = data.current_scripture
+                self.nav.to(SearchResultsPage, state=lambda: scriptures_with_verses(data.curr_scripture, self.verses))
                 self.searchbox.deactivate()
+                # self.verticalScrollBar().setValue(0)    # scroll back to top
 
         # scroll
         elif keypress in (Qt.Key_Down, Qt.Key_Up):
             QTextEdit.keyPressEvent(self, event)
+
         # keypress goes to searchbox
         else:
             Filterable.keyPressEvent(self, event)
@@ -712,11 +817,11 @@ class SearchResultDelegate(QStyledItemDelegate):
         # or at least on right, with match surely in view starting from left
 
         painter.save()
-        scripture = index.data(Qt.DisplayRole) # default item data is at role 0
+        item = index.data(Qt.DisplayRole) # default item data is at role 0
             # custom data was passed into this item, no longer usual type str
 
-        title = scripture['location'] + '\n'
-        subtitle = '\n' + scripture['text']
+        title = str(item['scripture']) + '\n'
+        subtitle = '\n' + item['text']
 
         given_rect = option.rect    # from size hint
         states = option.state       # bitwise OR of QStyle.State_ flags
@@ -769,11 +874,12 @@ class SearchResultsPage(Page, FilterableList):
         # self.itemActivated.connect(self.on_result_item_selected)
         self.fake_searchbox = SearchBox(None)   # illusion to for better communication to user;
             # serves as extra prompt on empty screen
-        set_grid_children(self,
-            grid=self.layout(),
-            children=(self.fake_searchbox,),
-            positions=(Qt.AlignRight | Qt.AlignBottom,)
-        )
+        # set_grid_children(self,
+        #     grid=self.layout(),
+        #     children=(self.fake_searchbox,),
+        #     positions=(Qt.AlignRight | Qt.AlignBottom,)
+        # )
+        set_grid_child(self, self.fake_searchbox, Qt.AlignRight | Qt.AlignBottom, grid=self.layout())
         self.fake_searchbox.show()
 
     def load_state(self, state):
@@ -791,13 +897,13 @@ class SearchResultsPage(Page, FilterableList):
         self.placeholder.setText(self.default_placeholder_msg)
 
     def show_items(self, items):
-        # replaced by custom filter_items
+        # replaced by custom filter_items, so override and do nothing
         return
 
-    def on_result_item_selected(self, item):
-        # callback for list widget selection
-        d = item.data(Qt.DisplayRole)
-        self.nav.to(SearchedVersePage, state=d['location'])
+    # def on_result_item_selected(self, item):
+    #     # callback for list widget selection
+    #     d = item.data(Qt.DisplayRole)
+    #     self.nav.to(SearchedVersePage, state=d['location'])
 
     def filter_items(self, search_text):
         # show matches of search in a list
@@ -814,13 +920,13 @@ class SearchResultsPage(Page, FilterableList):
 
         self.clear()
 
-        for n, verse in self.verses_iter_factory():
-            match = re.search(search_text, verse)
+        for scripture, verse_text in self.verses_iter_factory():
+            match = re.search(search_text, verse_text)
             if match is not None:
                 item = QListWidgetItem(self)
                 item.setData(Qt.DisplayRole, {
-                    'location': n,
-                    'text': verse.replace('\n', ''),
+                    'scripture': scripture,
+                    'text': verse_text.replace('\n', ''),
                 })
                 self.addItem(item)
 
@@ -864,6 +970,7 @@ if __name__ == '__main__':
     set_theme(app)
 
     book_logic.init_data()
+    data.bible = load_bible_json()
 
     main = MarginParent(PageManager(BooksPage, ChaptersPage, VersesPage, SearchResultsPage))
     main.setWindowTitle('Bible')    # initial title to override fbs default

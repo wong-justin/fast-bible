@@ -66,3 +66,38 @@ def iter_selected_verses(verse_nums):
     for num, text in data.current_verses:
         is_selected = int(num) in verse_nums
         yield is_selected, text
+
+
+### --- new
+
+def load_old_book(book_name):
+    fp = constants.BOOK_FP_TEMPLATE.format(book_name)
+    with open(fp, 'r') as file:
+        return json.load(file)
+
+def load_bible_json():
+    bible = {}
+    for book_name in data.BOOK_NAMES:
+        book = load_old_book(book_name)
+
+        if has_chapters(book_name):
+            chapters = book
+            # result = []
+            result = {}
+            for i in range(1, len(chapters)+1):
+                verses = chapters[str(i)]
+                # result.append(verses_dict_to_arr(verses))
+                result[str(i)] = verses
+            bible[book_name] = result
+        else:
+            verses = book
+            # bible[book_name] = verses_dict_to_arr(verses)
+            bible[book_name] = verses
+    return bible
+
+def verses_dict_to_arr(verses):
+    result = []
+    n = len(verses)
+    for i in range(1, n+1):
+        result.append(verses[str(i)])
+    return result

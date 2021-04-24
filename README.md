@@ -36,6 +36,10 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
 - implement filterableList default filter as ordered by index of regex search (allowing both caps,lower,space, and unspaced)
 
 - generalize for other languages
+- update demo gif
+
+### Bugs:
+- parsing error on Ezra 4:8 from download
 
 <details>
 <summary>steps to fbs-ify a pyqt app on windows</summary>
