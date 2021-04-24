@@ -10,23 +10,22 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
 
 ## Controls
 
-- Type to filter desired book, chapter, or verse
+- Type to filter desired book (by name), chapter or verse (by number)
 - `Enter` to select (nav forward), `Backspace` to nav back
 - `Escape` to clear search
+- `Ctrl F` to search regex in Bible, book, or chapter scope
+- When viewing a chapter: `Ctrl Up/Down` to highlight prev/next verse
 
 ## Todo
-- Search verses (ctrl-f)
-  - search by regex
-  - local search in book or chapter context?
-- Fix Psalms superscriptions and [other extras]
-- Shortcut to books pane
+- Shortcut to books/home page
 - ctrl-c copy text
 - ctrl-up/down navigate verses (start at beginning or end if none highlighted)
-- ctrl-plus/minus font size
-
+- ctrl-plus/minus font size zoom
+- join all books into one file instead of separate
+- Fix Psalms superscriptions and [other extra symbols/chars]
+  - replace backticks with hyphens (or nothing), and replace newlines with nothing (during initial download and parsing)?
 - abbreviate books in window title?
-- join all content into one json?
-- replace backticks with hyphens (or nothing), and replace newlines with nothing (during initial download and parsing)?
+
 - make inital setup script run automatically [during installer setup?](https://nsis.sourceforge.io/Simple_tutorials)
 - versioning: include in a "help" section for app? or just incl elsewhere, like in exe name or adjacent json
   - right click .exe -> Properties does show version and whatnot, so technically it's there just not as visible
