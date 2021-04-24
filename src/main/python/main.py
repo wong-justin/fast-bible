@@ -205,7 +205,7 @@ class PageManager(QStackedWidget):
         self.parentWidget().setWindowTitle(_str)
 
 def set_grid_children(parent, grid=None, children=[], positions=[]):
-    g = QGridLayout() if not grid else grid
+    g = MarginGrid() if not grid else grid
     for child, position in zip(children, positions):
         g.addWidget(child, 0, 0, position)
     parent.setLayout(g)
@@ -314,6 +314,7 @@ class SearchBox(QLineEdit):
         p.setColor(QPalette.Text, QColor(199, 196, 152))
         p.setColor(QPalette.Base, QColor(49, 52, 64))
         self.setPalette(p)
+        self.setStyleSheet('border: 1px solid rgba(199, 196, 152, 64)')
 
         self.filterable = parent_filterable
         self.textChanged.connect(self.on_change)
@@ -340,6 +341,7 @@ class SearchBox(QLineEdit):
         # hide and stop searching
         self.hide()
         # self.clear()
+        self.setText('')
         self.filterable.show_all()
 
 def set_half_transparent(label):
@@ -349,8 +351,8 @@ def set_half_transparent(label):
     p.setColor(QPalette.WindowText, color)
     label.setPalette(p)
 
-def EmptyPlaceholderWidget(parent=None):
-    label = QLabel('no results.\ntype something else', parent)
+def EmptyPlaceholderWidget(parent=None, msg='placeholder'):
+    label = QLabel(msg, parent)
     label.setAlignment(Qt.AlignCenter)
     set_half_transparent(label)
     return label
@@ -367,11 +369,11 @@ class FilterableList(QListWidget, Filterable):
         Qt.Key_Return,
     }
 
-    def __init__(self):
+    def __init__(self, placeholder='no results.\ntype something else'):
         QListWidget.__init__(self)
         Filterable.__init__(self)
 
-        self.placeholder = EmptyPlaceholderWidget(self)
+        self.placeholder = EmptyPlaceholderWidget(self, placeholder)
         self.placeholder.hide()
         set_grid_children(self,
             grid=self.layout(),
@@ -456,6 +458,7 @@ class BooksPage(Page, FilterableList):
         if ctrl_f_event(event):
             chapters = get_current_book()
             self.nav.to(SearchResultsPage, state=lambda: iter_all_bible_verses())
+            self.searchbox.deactivate()
         else:
             FilterableList.keyPressEvent(self, event)   # this is 0th page; don't need nav back
 
@@ -511,6 +514,7 @@ class ChaptersPage(Page, FilterableList):
             chapters = get_current_book()
             book_name = data.curr_scripture.components[0]
             self.nav.to(SearchResultsPage, state=lambda: iter_verses(book_name, chapters))
+            self.searchbox.deactivate()
         else:
             FilterableList.keyPressEvent(self, event)
 
@@ -649,6 +653,7 @@ class VersesPage(Page, QTextEdit, Filterable):
             elif keypress == Qt.Key_F:
                 # self.nav.to(SearchResultsPage, state=iter(self.verses.items()))
                 self.nav.to(SearchResultsPage, state=lambda: self.verses.items())
+                self.searchbox.deactivate()
 
         # scroll
         elif keypress in (Qt.Key_Down, Qt.Key_Up):
@@ -752,42 +757,37 @@ class SearchResultDelegate(QStyledItemDelegate):
         return s
 
 class SearchResultsPage(Page, FilterableList):
-    # maybe use a qtreeview instead of qlistwidget?
-    # or use custom QListWidgetItems that can maybe hold more
+    '''Checks verses in scope for matches and shows results in list widget.
+    Displays matches as scripture + text.'''
 
     def __init__(self):
+        self.default_placeholder_msg = 'search regex:'
         Page.__init__(self)
-        FilterableList.__init__(self)
+        FilterableList.__init__(self, placeholder=self.default_placeholder_msg)
 
         self.setItemDelegate(SearchResultDelegate(self))
         # self.itemActivated.connect(self.on_result_item_selected)
-
-        # self.placeholder = EmptyPlaceholderWidget(self)
-        # layout = self.layout()
-        # layout.addWidget(self.placeholder, 0, 0, Qt.AlignCenter)
-        # self.setLayout(layout)
-        # self.show_empty()
+        self.fake_searchbox = SearchBox(None)   # to appear on empty screen
+        set_grid_children(self,
+            grid=self.layout(),
+            children=(self.fake_searchbox,),
+            positions=(Qt.AlignRight | Qt.AlignBottom,)
+        )
+        self.fake_searchbox.show()
 
     def load_state(self, state):
         # state = callable that produces iter of verses in desired scope
         self.verses_iter_factory = state
-        # scope = str(data.curr_scripture)
-        self.nav.set_title('Search')    # scope apparent from results list, no need to clutter title here
+        scope = str(data.curr_scripture)
+        self.nav.set_title('Search ' + scope)
+        self.show_all()     # trigger empty search display
 
     def show_all(self):
-        # show nothing when no search filter
+        # called when empty search, which means
+        # show placeholder and extra searchbox prompt for user.
         self.clear()
-
-    # def clear(self):
-    #     # completely blank page looks bad; give a message
-    #     super().clear()
-    #     # self.show_empty()
-    #     self.placeholder.show()
-
-    # def addItem(self, *args, **kwargs):
-    #     super().addItem(*args, **kwargs)
-    #     # if self.empty_feedback_widget.isVisible():
-    #     self.placeholder.hide()
+        self.fake_searchbox.show()
+        self.placeholder.setText(self.default_placeholder_msg)
 
     def show_items(self, items):
         # replaced by custom filter_items
@@ -800,10 +800,14 @@ class SearchResultsPage(Page, FilterableList):
 
     def filter_items(self, search_text):
         # show matches of search in a list
+        self.fake_searchbox.hide()  # could be showing if this is first char of search
+        self.placeholder.setText(self.default_placeholder_msg)  # could be diff if last search was error
+
         try:
             re.compile(search_text)
         except re.error:
             # invalid search pattern
+            self.placeholder.setText('invalid regex')
             self.clear()
             return
 
@@ -824,11 +828,15 @@ class SearchResultsPage(Page, FilterableList):
             # if search_text in verse:
             #     self.addItem(f'{n}\n' + verse)     # QtListWidget method
 
+        if QListWidget.count(self) == 0:
+            self.placeholder.setText('no results')
+
     def keyPressEvent(self, event):
-        if not self.search_is_active() and event.key() == Qt.Key_Backspace:
+        empty_search = not self.search_is_active() or self.searchbox.text() == ''
+        if empty_search and event.key() == Qt.Key_Backspace:
             self.nav.back()
             self.nav.set_title(str(data.curr_scripture))
-            self.clear()
+            # self.clear()
         else:
             FilterableList.keyPressEvent(self, event)
 
@@ -837,12 +845,16 @@ def MarginParent(widget):
     parent = QWidget()
     widget.setParent(parent)
 
-    margins = QGridLayout()
+    margins = MarginGrid()
     margins.addWidget(widget, 0, 0)#, Qt.AlignLeft | Qt.AlignTop)
-    margins.setContentsMargins(2,2,2,2)
 
     parent.setLayout(margins)
     return parent
+
+def MarginGrid():
+    layout = QGridLayout()
+    layout.setContentsMargins(2,2,2,2)
+    return layout
 
 # --- run
 
