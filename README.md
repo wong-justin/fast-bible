@@ -34,6 +34,7 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
     - app checks github page for new release maybe
 - prevent slow loading + white dialog on initial setup download?
 - simplified regex, eg shortcuts for case sensitive, exact match, etc
+- implement filterableList default filter as ordered by index of regex search (allowing both caps,lower,space, and unspaced)
 
 - generalize for other languages
 
