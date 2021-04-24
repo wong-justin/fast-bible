@@ -1,30 +1,25 @@
-# rename me bible_logic or shared
 
-# data
-import constants
+from shared import *
 
-from threading import Thread
 from types import SimpleNamespace
 import json
 
-data = SimpleNamespace(
-    CHAPTER_COUNTS=None,
-    BOOK_NAMES=None,
-)
-
-def init_data():
-    data.CHAPTER_COUNTS = constants.CHAPTER_COUNTS
-    data.BOOK_NAMES = constants.BOOK_NAMES
-    return data
+# bible = {}
+#
+# def init_bible():
+#     load all the jsons or the big json
+#
+# def all that iter logic:
+#     pass
 
 def get_book_names():
-    return data.BOOK_NAMES
+    return BOOK_NAMES
 
 def get_num_chapters_for(book):
-    return data.CHAPTER_COUNTS[book]
+    return CHAPTER_COUNTS[book]
 
 def get_num_chapters(book):
-    return data.CHAPTER_COUNTS[book]
+    return CHAPTER_COUNTS[book]
 
 def has_chapters(book):
     return get_num_chapters_for(book) is not 1
@@ -32,13 +27,13 @@ def has_chapters(book):
 ### --- new, once on app startup
 
 def load_old_book(book_name):
-    fp = constants.BOOK_FP_TEMPLATE.format(book_name)
+    fp = BOOK_FP_TEMPLATE.format(book_name)
     with open(fp, 'r') as file:
         return json.load(file)
 
 def load_bible_json():
     bible = {}
-    for book_name in data.BOOK_NAMES:
+    for book_name in BOOK_NAMES:
         book = load_old_book(book_name)
 
         if has_chapters(book_name):

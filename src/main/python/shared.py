@@ -1,4 +1,4 @@
-'''Shared constants/methods for consistency between setup and gui.'''
+'''Shared constants, and also an appctxt needed in multiple places.'''
 
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
