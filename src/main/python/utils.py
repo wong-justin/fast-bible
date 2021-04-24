@@ -63,6 +63,10 @@ data = SimpleNamespace(
     curr_scripture=Scripture(),
 )
 
+def init_data():
+    data.bible = load_bible_json()
+    data._all_verses = list(_iter_verses_in_whole_bible())  # maybe this will be faster?
+
 ### --- widgets to implement
 
 class Page:
@@ -166,15 +170,7 @@ class Filterable(QWidget):
 
     def __init__(self):
         self.searchbox = SearchBox(self)
-
-        # set_grid_children(self,
-        #     children=(self.searchbox,),
-        #     positions=(Qt.AlignRight | Qt.AlignBottom,)
-        # )
-        set_grid_child(self, self.searchbox, Qt.AlignRight | Qt.AlignBottom)
-        # overlay_bot_right(self, self.searchbox)
-        # set_grid_layout(self, EmptyPlaceholderWidget(), self.searchbox)
-        # self.placeholder = EmptyPlaceholderWidget(self)
+        add_grid_child(self, self.searchbox, Qt.AlignRight | Qt.AlignBottom)
 
     def set_items(self, items):
         # self.all_items = items
@@ -278,12 +274,7 @@ class FilterableList(QListWidget, Filterable):
 
         self.placeholder = EmptyPlaceholderWidget(self, placeholder)
         self.placeholder.hide()
-        # set_grid_children(self,
-        #     grid=self.layout(),
-        #     children=(self.placeholder,),
-        #     positions=(Qt.AlignCenter,),
-        # )
-        set_grid_child(self, self.placeholder, Qt.AlignCenter, grid=self.layout())
+        add_grid_child(self, self.placeholder, Qt.AlignCenter, grid=self.layout())
 
     def addItem(self, *args, **kwargs):
         super().addItem(*args, **kwargs)
@@ -340,7 +331,7 @@ def MarginGrid():
 
 ### --- widget helpers / styling / convenience
 
-def set_grid_child(parent, child, position, grid=None):
+def add_grid_child(parent, child, position, grid=None):
     # supplies grid layout if not specified
     g = MarginGrid() if not grid else grid
     g.addWidget(child, 0, 0, position)
@@ -424,6 +415,9 @@ def keypress_produces_symbol(key):
 ### --- iterating verses depending on scripture location scope
 
 def iter_verses_in_whole_bible():
+    yield from data._all_verses
+
+def _iter_verses_in_whole_bible():
     for book_name in BOOK_NAMES:
         book_scripture = Scripture(book_name)
 

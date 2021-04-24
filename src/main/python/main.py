@@ -1,6 +1,7 @@
 
 from utils import *
 
+from threading import Thread
 import re
 import sys
 import os
@@ -148,14 +149,23 @@ class VersesPage(Page, QTextEdit, Filterable):
             vbar.triggerAction(QAbstractSlider.SliderSingleStepSub) # but in general content looks nicer when not pinned to top
 
     def change_highlighted_scripture(self, diff):
-        # make sure a verse is already selected
+
         pattern = self.searchbox.text()
-        if pattern not in self.verses.keys():
+
+        # allow new highlight from beginning or end
+        if pattern == '':
+            last_verse = list(self.verses.keys())[-1]
+            n = (1 if diff == 1 else last_verse)
+
+        # else make sure a verse is already selected
+        elif pattern not in self.verses.keys():
             return
-        # make sure desired verse within bounds
-        n = int(pattern) + diff
-        if str(n) not in self.verses.keys():
-            return
+
+        # make sure new verse within bounds
+        else:
+            n = int(pattern) + diff
+            if str(n) not in self.verses.keys():
+                return
 
         # update searchbox, which triggers new highlight filter and updates user
         self.searchbox.activate(str(n))
@@ -255,15 +265,17 @@ class SearchResultsPage(Page, FilterableList):
         Page.__init__(self)
         FilterableList.__init__(self, placeholder=self.default_placeholder_msg)
 
-        self.setItemDelegate(SearchResultDelegate(self))
+        self.setItemDelegate(SearchResultDelegate(self))    # custom rendering of list item
         # self.itemActivated.connect(self.on_result_item_selected)
 
         # dummy searchbox serves as visual prompt on empty screen
         #  gives better communication to user
         self.fake_searchbox = SearchBox(None)
-
-        set_grid_child(self, self.fake_searchbox, Qt.AlignRight | Qt.AlignBottom, grid=self.layout())
+        add_grid_child(self, self.fake_searchbox, Qt.AlignRight | Qt.AlignBottom, grid=self.layout())
         self.fake_searchbox.show()
+
+        # to decrease stalling when searching bible?
+        self._thread = None
 
     def load_state(self, state):
         # state = callable that produces iter of verses in desired scope
@@ -288,6 +300,11 @@ class SearchResultsPage(Page, FilterableList):
     #     d = item.data(Qt.DisplayRole)
     #     self.nav.to(SearchedVersePage, state=d['location'])
 
+    # def filter_items(self, search_text):
+    #     if self._thread is not None and self._thread.is_active():
+    #         self._thread.stop()
+
+
     def filter_items(self, search_text):
         # show matches of search in a list
         self.fake_searchbox.hide()  # could be showing if this is first char of search
@@ -302,19 +319,28 @@ class SearchResultsPage(Page, FilterableList):
 
         self.clear()
 
+        # items = []
         for scripture, verse_text in self.verses_iter_factory():
             match = re.search(search_text, verse_text)
             if match is not None:
-                item = QListWidgetItem(self)
+                item = QListWidgetItem()#self)
                 item.setData(Qt.DisplayRole, {
                     'scripture': scripture,
-                    'text': verse_text.replace('\n', ''),
+                    'text': verse_text.replace('\n', ' '),
                 })
+                # items.append(item)
                 self.addItem(item)
+        # self.insertItems(0, items)
+        # self.setCurrentRow(0)
+        # print(self.item(100).data(0))
 
         # when finished iter and no matches
-        if QListWidget.count(self) == 0:
+        # if QListWidget.count(self) == 0:
+        # if len(items) == 0:
+        if self.itemAt(0, 0) is None:
             self.placeholder.setText('no results')
+        else:
+            self.placeholder.setText('')
 
     def keyPressEvent(self, event):
         empty_search = not self.search_is_active() or self.searchbox.text() == ''
@@ -331,7 +357,7 @@ if __name__ == '__main__':
     app = QApplication([])
     set_theme(app)
 
-    data.bible = load_bible_json()
+    init_data()
 
     main = MarginParent(PageManager(BooksPage, ChaptersPage, VersesPage, SearchResultsPage))
     main.setWindowTitle('Bible')    # initial title to override fbs default

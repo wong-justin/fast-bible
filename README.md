@@ -19,7 +19,6 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
 ## Todo
 - Shortcut to books/home page
 - ctrl-c copy text
-- ctrl-up/down navigate verses (start at beginning or end if none highlighted)
 - ctrl-plus/minus font size zoom
 - join all books into one file instead of separate
 - Fix Psalms superscriptions and [other extra symbols/chars]
@@ -34,7 +33,7 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
 - prevent slow loading + white dialog on initial setup download?
 - simplified regex, eg shortcuts for case sensitive, exact match, etc
 - implement filterableList default filter as ordered by index of regex search (allowing both caps,lower,space, and unspaced)
-
+- retain window size from last session
 - generalize for other languages
 - update demo gif
 
