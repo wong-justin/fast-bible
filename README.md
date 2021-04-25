@@ -36,6 +36,18 @@ Download the [latest release](https://github.com/wong-justin/fast-bible/releases
 - retain window size from last session
 - generalize for other languages
 - update demo gif
+- load search results in batches for faster updates?
+- highlighted verse in middle or upper third of screen
+
+- keep highlighted verse focused during window resize?
+
+- create branch partial-release, just for auto updating app to download updated/new files (or delete?)
+  - unless checksum each file and only download the new ones
+curl https://api.github.com/repos/wong-justin/fast-bible/releases/latest
+tag_name
+
+
+
 
 ### Bugs:
 - parsing error on Ezra 4:8 from download

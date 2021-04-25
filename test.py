@@ -204,6 +204,13 @@ def test_list_widget_item_adding_performance():
     class B(QListWidget):
         def add(self):
             for i in range(1000):
+                item = QListWidgetItem('')
+                self.addItem(item)
+                item.setData(0, i)
+
+    class C(QListWidget):
+        def add(self):
+            for i in range(1000):
                 item = QListWidgetItem('', self)
                 item.setData(0, i)
 
@@ -213,10 +220,12 @@ def test_list_widget_item_adding_performance():
     #             item = QListWidgetItem(str(i), self)
             # print(self.itemAt(0, 0))
 
-    a, b, = A(), B()
-    time_methods(a.add, b.add, n=10)
+    widgets = [_class() for _class in (C,B,A)]
+    methods = [w.add for w in widgets]
+    time_methods(*methods, n=10)
 
-    time_methods(a.clear, b.clear, n=1)
+    # methods = [w.clear for w in widgets]
+    # time_methods(*methods, n=1)
 
 
 
@@ -245,6 +254,12 @@ def time_methods(*fns, n=1):
     results = []
     for fn in fns:
         results.append(timeit(fn, number=n))
+
+    # go backwards in case maybe the order of fns affects things, like caching
+    for i in range(len(fns)-1, 0-1, -1):
+        fn = fns[i]
+        results[i] += timeit(fn, number=n)
+
     for fn, t in zip(fns, results):
         print(type(fn).__name__, t)
 
@@ -267,6 +282,42 @@ def test_window_sizing():
             super().closeEvent(event)
 
     show_widget(W)
+
+def test_list_uniform_item_size():
+    # conclusion: setUniformItemSizes is not helping
+
+    class A(QListWidget):
+        def add(self):
+            for i in range(10000):
+                item = QListWidgetItem()
+                item.setData(0, i)
+                self.addItem(item)
+            # return self.itemAt(0, 0) is None
+
+    class B(QListWidget):
+        def __init__(self):
+            super().__init__()
+            QListView.setUniformItemSizes(self, True)
+
+        def add(self):
+            for i in range(10000):
+                item = QListWidgetItem()
+                item.setData(0, i)
+                self.addItem(item)
+            # return self.itemAt(0, 0) is None
+
+    a, b = A(), B()
+    time_methods(a.add, b.add)#, n=2)
+
+
+def test_file_compare():
+    import filecmp
+
+    d1 = '../navigating-release/'
+    d2 = './target/Fast Bible/'
+
+    cmp = filecmp.dircmp(d1, d2)
+    print(cmp.diff_files)
 
 
 
@@ -294,7 +345,9 @@ def show_widget(make_widget):
     # sys.exit(exit_code)
 
 if __name__ == '__main__':
-    test_window_sizing()
+    test_file_compare()
+    # test_list_uniform_item_size()
+    # test_window_sizing()
     # test_list_widget_item_adding_performance()
     # test_list_widget_items_add()
     # test_iter_performance()

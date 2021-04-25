@@ -274,8 +274,13 @@ class SearchResultsPage(Page, FilterableList):
         add_grid_child(self, self.fake_searchbox, Qt.AlignRight | Qt.AlignBottom, grid=self.layout())
         self.fake_searchbox.show()
 
-        # to decrease stalling when searching bible?
-        self._thread = None
+        # to decrease stalling when doing a large search?
+        # self._thread = None
+        # batches aren't working/helping, maybe because it's a listwidget instead of listview
+        # QListView.setLayoutMode(self, QListView.Batched)
+        # self.setBatchSize(5)
+        # self.setUniformItemSizes(True) # don't think it's helping
+        # maybe implement a list view instead of a list widget?
 
     def load_state(self, state):
         # state = callable that produces iter of verses in desired scope
@@ -285,7 +290,7 @@ class SearchResultsPage(Page, FilterableList):
         self.show_all()     # trigger empty search display
 
     def show_all(self):
-        # called when empty search, which means
+        # called when searchbox is empty, which means
         # show placeholder and extra searchbox prompt for user.
         self.clear()
         self.fake_searchbox.show()
@@ -299,11 +304,6 @@ class SearchResultsPage(Page, FilterableList):
     #     # callback for list widget selection
     #     d = item.data(Qt.DisplayRole)
     #     self.nav.to(SearchedVersePage, state=d['location'])
-
-    # def filter_items(self, search_text):
-    #     if self._thread is not None and self._thread.is_active():
-    #         self._thread.stop()
-
 
     def filter_items(self, search_text):
         # show matches of search in a list
@@ -330,17 +330,19 @@ class SearchResultsPage(Page, FilterableList):
                 })
                 # items.append(item)
                 self.addItem(item)
-        # self.insertItems(0, items)
-        # self.setCurrentRow(0)
+        # for i in items:
+        #     self.addItem(i)
         # print(self.item(100).data(0))
 
         # when finished iter and no matches
-        # if QListWidget.count(self) == 0:
-        # if len(items) == 0:
-        if self.itemAt(0, 0) is None:
+        if self.is_empty():
             self.placeholder.setText('no results')
         else:
             self.placeholder.setText('')
+
+    def is_empty(self):
+        # return QListWidget.count(self) == 0  # works if you used addItem
+        return self.itemAt(0, 0) is None    # works with just making ListItem(self), not having called addItem
 
     def keyPressEvent(self, event):
         empty_search = not self.search_is_active() or self.searchbox.text() == ''
@@ -352,6 +354,8 @@ class SearchResultsPage(Page, FilterableList):
             FilterableList.keyPressEvent(self, event)
 
 class Main(QWidget):
+    # outer window shown; wraps child and restores settings from last session
+
     def __init__(self, child):
         super().__init__()
 
@@ -361,7 +365,8 @@ class Main(QWidget):
 
         child.setParent(self)
 
-        self.settings = QSettings('FastBible', 'FastBible')
+        self.settings = QSettings(RES_DIR + '/FastBible.ini', QSettings.IniFormat)  # I can specify the location
+        # self.settings = QSettings('FastBible', 'FastBible')   # saved in some OS specific location
         default = bytes('', encoding='utf-8')
         geometry = self.settings.value('geometry', default)
         self.restoreGeometry(geometry)

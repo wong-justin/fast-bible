@@ -12,6 +12,7 @@ def _read_csv(fp):
 
 appctxt = ApplicationContext()
 
+RES_DIR = appctxt.get_resource('./')
 BOOK_DIR = appctxt.get_resource('data/cleaned/')
 BOOK_FP_TEMPLATE = BOOK_DIR + '/{}.json'
 

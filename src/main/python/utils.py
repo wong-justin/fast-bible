@@ -8,7 +8,7 @@ from PyQt5.QtGui import QPalette, QColor, QFont, QFontDatabase, QIcon, QFontMetr
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QPushButton,
     QLineEdit, QTextEdit, QLabel, QListWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
     QSpacerItem, QAbstractSlider, QDialog, QProgressDialog, QTableWidget, QTableWidgetItem,
-    QListWidgetItem, QStyledItemDelegate, QStyle)
+    QListWidgetItem, QStyledItemDelegate, QStyle, QListView)
 
 from types import SimpleNamespace
 # import ctypes
