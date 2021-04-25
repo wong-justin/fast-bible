@@ -6,6 +6,7 @@ docs/*
 misc
 __pycache__/
 .ipynb_checkpoints/
+src/main/resources/base/*.ini
 
 *.manifest
 *.spec
