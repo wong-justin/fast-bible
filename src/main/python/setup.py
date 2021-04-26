@@ -12,7 +12,7 @@ import re
 import json
 from io import BytesIO
 from zipfile import ZipFile
-from time import sleep
+# from time import sleep
 
 # LOCAL_RTF_FILEPATHS = {
 #     book_name: {'old': fp_old, 'new': fp_new}

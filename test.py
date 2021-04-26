@@ -5,6 +5,12 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QPushButton,
     QLineEdit, QTextEdit, QLabel, QListWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
     QSpacerItem, QAbstractSlider, QDialog, QProgressDialog)
 
+import requests
+from io import BytesIO
+from zipfile import ZipFile
+from pathlib import Path
+import shutil
+
 import sys
 sys.path.insert(0, 'src/main/python/')
 
@@ -319,14 +325,84 @@ def test_file_compare():
     cmp = filecmp.dircmp(d1, d2)
     print(cmp.diff_files)
 
+def test_download_release():
+    import requests
 
+    # https://docs.github.com/en/rest/reference/repos#releases
+    latest_release_url = 'https://api.github.com/repos/wong-justin/fast-bible/releases/latest'
+    release_info = requests.get(latest_release_url).json()
+    version = release_info['tag_name']
+    # if version <= self.version:
+    #     return
+
+    # testing with all files
+    download_url = release_info['zipball_url']
+
+    # real way when partial files asset is uploaded
+    # assets = release_info['assets']
+    # updated_files_asset = find_obj_where(assets, lambda x:x['name'] == '_updated_files.zip')
+    # download_url = updated_files_asset['url']
+    # # download_url = updated_files_asset['browser_download_url']    # maybe it's this one?
+
+    print(version, download_url)
+
+    download_zip(download_url, outdir='./misc/tmp/')
+    with download_zip(download_url) as zip:
+        zip_extract_all(zip, lambda path: outdir / strip_first_folder(path) )
+
+
+def test_download_zip():
+    url = 'https://api.github.com/repos/wong-justin/fast-bible/zipball/v0.2'
+    outdir='./misc/tmp/'
+    with download_zip(url) as zip:
+        zip_extract_all(zip, lambda path: outdir / strip_first_folder(path) )
+
+def download_zip(url):
+    # returns ZipFile of http response
+
+    response = requests.get(url)
+    filelike = BytesIO(response.content)
+    return ZipFile(filelike)
+
+def zip_extract_all(zip, modify_path):
+    # extract each file in zip to path given by modify_path(file.path)
+    # overwrites existing files
+
+    # extract all plain
+    # for file in zip.filelist:
+    #     zip.extract(file, outdir)
+
+    for info in zip.filelist:
+
+        outpath = modify_path(info.filename)
+
+        if info.is_dir():
+            outpath.mkdir(exist_ok=True)
+            continue
+        else:
+            source_file = zip.open(info.filename)
+            target_file = open(outpath, 'wb')
+            shutil.copyfileobj(source_file, target_file)
+
+def strip_first_folder(path):
+    p = Path(path)
+    return Path(*p.parts[1:])
+
+def find_obj_where(objects, key_fn):
+    for obj in objects:
+        if key_fn(obj):
+            return obj
+
+def replace_in_namespace(namspace, **kwargs):
+    for k,v in kwargs:
+        setattr(namespace, k, v)
 
 def show_alternate_classes(**kwargs):
+    # old_class=new_class,
 
     import main
 
-    for old_name, new_class in kwargs.items():
-        setattr(main, old_name, new_class)
+    replace_in_namespace(main, **kwargs)
 
     def BasicApp():
         init_data()
@@ -345,7 +421,9 @@ def show_widget(make_widget):
     # sys.exit(exit_code)
 
 if __name__ == '__main__':
-    test_file_compare()
+    test_download_zip()
+    # test_download_release()
+    # test_file_compare()
     # test_list_uniform_item_size()
     # test_window_sizing()
     # test_list_widget_item_adding_performance()
