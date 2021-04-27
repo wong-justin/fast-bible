@@ -346,10 +346,63 @@ def test_download_release():
 
     print(version, download_url)
 
-    download_zip(download_url, outdir='./misc/tmp/')
+    outdir='./misc/tmp/'
     with download_zip(download_url) as zip:
         zip_extract_all(zip, lambda path: outdir / strip_first_folder(path) )
 
+def test_restart_process():
+    import subprocess
+
+
+
+    # https://stackoverflow.com/questions/49019527/correct-way-to-implement-auto-update-feature-for-pyqt
+    # Begin the update process by spawning the updater script.
+
+    class W(QWidget):
+        def keyPressEvent(self, event):
+            # if updating.check_for_update():
+            script = Path.cwd() / 'src/main/python/updating.py'
+            p = subprocess.Popen([sys.executable, str(script), 'https://sample.url'], shell=True)
+            stop_app()
+            # QApplication.exit(0)
+            # print(p)
+            # exit_code = p.wait()
+            # print(exit_code)
+            # sys.exit(exit_code)
+
+
+    def stop_app():
+        QApplication.exit(0)
+
+    show_widget(W)
+
+
+    # https://stackoverflow.com/questions/16549331/pyqt-application-performing-updates
+    # res, pid = QtCore.QProcess.startDetached('program.exe', ['arg1', 'arg2'], 'cwd')
+    # detached_process = process(updater_method)
+    # def updater_method():
+    #     # kill app ui
+    #     # download
+    #     # run app
+    #     pass
+
+
+    # https://stackoverflow.com/questions/49127454/running-external-python-script-from-pyinstaller
+
+
+def test_quit_app():
+
+    class W(QWidget):
+        def keyPressEvent(self, event):
+            # QCoreApplication.exit(0)
+            QApplication.exit(0)
+
+
+    app = QApplication([])
+    w = W()
+    w.show()
+    exit_code = app.exec_()     # 2. Invoke appctxt.app.exec_()
+    sys.exit(exit_code)
 
 def test_download_zip():
     url = 'https://api.github.com/repos/wong-justin/fast-bible/zipball/v0.2'
@@ -367,10 +420,7 @@ def download_zip(url):
 def zip_extract_all(zip, modify_path):
     # extract each file in zip to path given by modify_path(file.path)
     # overwrites existing files
-
-    # extract all plain
-    # for file in zip.filelist:
-    #     zip.extract(file, outdir)
+    # cusotmizable alternative to zip.extractall()
 
     for info in zip.filelist:
 
@@ -381,7 +431,7 @@ def zip_extract_all(zip, modify_path):
             continue
         else:
             source_file = zip.open(info.filename)
-            target_file = open(outpath, 'wb')
+            target_file = open(outpath, 'wb')   # overwrites
             shutil.copyfileobj(source_file, target_file)
 
 def strip_first_folder(path):
@@ -416,12 +466,14 @@ def show_widget(make_widget):
     app = QApplication([])
     w = make_widget()
     w.show()
-    app.exec_()
-    # exit_code = app.exec_()
-    # sys.exit(exit_code)
+    # app.exec_()
+    exit_code = app.exec_()
+    sys.exit(exit_code)
 
 if __name__ == '__main__':
-    test_download_zip()
+    test_restart_process()
+    # test_quit_app()
+    # test_download_zip()
     # test_download_release()
     # test_file_compare()
     # test_list_uniform_item_size()
