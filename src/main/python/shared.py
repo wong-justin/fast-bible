@@ -1,8 +1,11 @@
 '''Shared constants, and also an appctxt needed in multiple places.'''
 
+from utils import *
+# print(dir(utils))
+import updating
+
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from fbs_runtime.application_context import is_frozen
-
 from PyQt5.QtCore import Qt, QProcess, QObject, QThread, pyqtSignal
 from PyQt5.QtWidgets import QProgressDialog
 
@@ -13,7 +16,7 @@ from time import sleep
 from threading import Thread
 import os
 
-from utils import *
+
 
 def _read_csv(fp):
     '''Returns list of chunks per line'''
@@ -24,6 +27,8 @@ def _read_csv(fp):
             line = file.readline()
 
 class MyAppContext(ApplicationContext, QObject):
+    # extends QObject for sake of having slots
+    # has slot for sake of initiating gui update from worker thread
 
     update_signal = pyqtSignal(str)
 
@@ -42,9 +47,9 @@ class MyAppContext(ApplicationContext, QObject):
         Thread(target=self.check_for_update).start()
 
         if _first_time_running_app():
-            show_downloading_bible(main)
+            self.show_downloading_bible()
 
-        exit_code = appctxt.app.exec_()
+        exit_code = self.app.exec_()
 
         # app is closed and told to restart
         if exit_code == RESTART_EXIT_CODE:
@@ -64,25 +69,26 @@ class MyAppContext(ApplicationContext, QObject):
         QProcess.startDetached(exe, args)
 
     def check_for_update(self):
-        # url = _check_for_update(self.build_settings['version'])
-        # if url:
-        #     self.update_signal.emit(url)
+        # done in worker thread to prevent http time from blocking gui
+        url = updating.check_for_update(self.build_settings['version'])
+        if url:
+            self.update_signal.emit(url)
 
         # testing
-        sleep(2)
-        self.update_signal.emit('https://some_url')
+        # sleep(2)
+        # self.update_signal.emit('https://some_url')
 
     def show_downloading_update(self, download_url):
         dialog = DownloadDialog('App Update', '', (0,66), self.main)
         dialog.show()
 
         # testing
-        sleep(5)
+        sleep(3)
 
-        # outdir='./misc/tmp/'
-        # with download_zip(download_url) as zip:
-        #     zip_extract_all(zip, lambda path: outdir / strip_first_folder(path) )
+        updating.download_update(download_url)
         dialog.close()
+
+        self.app.exit(RESTART_EXIT_CODE)
 
     def show_downloading_bible(self):
         dialog = DownloadDialog('Downloading the Bible',
@@ -102,34 +108,21 @@ class MyAppContext(ApplicationContext, QObject):
 def _first_time_running_app():
     return len( os.listdir(BOOK_DIR) ) <= 1
 
-def _check_for_update(curr_verison):
-    # https://docs.github.com/en/rest/reference/repos#releases
-    latest_release_url = 'https://api.github.com/repos/wong-justin/fast-bible/releases/latest'
-    release_info = requests.get(latest_release_url).json()
-    latest_version = release_info['tag_name']
-    if not version_greater_than(latest_version, curr_version):
-        return
-
-    # testing with all files
-    download_url = release_info['zipball_url']
-
-    # real way when partial files asset is uploaded
-    # assets = release_info['assets']
-    # updated_files_asset = find_obj_where(assets, lambda x:x['name'] == '_updated_files.zip')
-    # download_url = updated_files_asset['url']
-    # # download_url = updated_files_asset['browser_download_url']    # maybe it's this one?
-
-    print(version, download_url)
+class DownloadDialog(QProgressDialog):
+    # config dialog to block main window until finished
+    def __init__(self, title, label='', _range=(0,0), parent=None):
+        super().__init__(parent, Qt.WindowCloseButtonHint | Qt.WindowContextHelpButtonHint)
+        self.setRange(*_range)
+        self.setCancelButton(None)
+        self.setWindowTitle(title)
+        self.setModal(True)
+        self.setMinimumDuration(0)
 
 
-def version_greater_than(v1, v2):
-    # ('0.12.1', '0.3.1') -> True
 
-    # temp
-    return v1 > v2
 
 appctxt = MyAppContext()
-print(appctxt.build_settings)
+# print(appctxt.build_settings)
 
 RES_DIR = appctxt.get_resource('./')
 BOOK_DIR = appctxt.get_resource('data/cleaned/')

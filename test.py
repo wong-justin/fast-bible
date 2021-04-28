@@ -481,38 +481,9 @@ def test_download_zip():
     with download_zip(url) as zip:
         zip_extract_all(zip, lambda path: outdir / strip_first_folder(path) )
 
-def download_zip(url):
-    # returns ZipFile of http response
 
-    response = requests.get(url)
-    filelike = BytesIO(response.content)
-    return ZipFile(filelike)
 
-def zip_extract_all(zip, modify_path):
-    # extract each file in zip to path given by modify_path(file.path)
-    # overwrites existing files
-    # cusotmizable alternative to zip.extractall()
 
-    for info in zip.filelist:
-
-        outpath = modify_path(info.filename)
-
-        if info.is_dir():
-            outpath.mkdir(exist_ok=True)
-            continue
-        else:
-            source_file = zip.open(info.filename)
-            target_file = open(outpath, 'wb')   # overwrites
-            shutil.copyfileobj(source_file, target_file)
-
-def strip_first_folder(path):
-    p = Path(path)
-    return Path(*p.parts[1:])
-
-def find_obj_where(objects, key_fn):
-    for obj in objects:
-        if key_fn(obj):
-            return obj
 
 def replace_in_namespace(namspace, **kwargs):
     for k,v in kwargs:
