@@ -98,6 +98,10 @@ class Page:
         if event.key() == Qt.Key_Backspace:
             self.nav.back()
 
+        # elif keypress = ctrl-p or something
+        #   nav.to.home()
+        #   nav.reset_history()
+
 class PageManager(QStackedWidget):
     '''Groups Page subclasses for navigating among each other or back in history.
 
@@ -328,6 +332,16 @@ def MarginGrid():
     layout = QGridLayout()
     layout.setContentsMargins(2,2,2,2)
     return layout
+
+class DownloadDialog(QProgressDialog):
+    # config dialog to block main window until finished
+    def __init__(self, title, label='', _range=(0,0), parent=None):
+        super().__init__(parent, Qt.WindowCloseButtonHint | Qt.WindowContextHelpButtonHint)
+        self.setRange(*_range)
+        self.setCancelButton(None)
+        self.setWindowTitle(title)
+        self.setModal(True)
+        self.setMinimumDuration(0)
 
 ### --- widget helpers / styling / convenience
 

@@ -1,5 +1,5 @@
 
-from PyQt5.QtCore import Qt, QSize, QSettings
+from PyQt5.QtCore import Qt, QSize, QSettings, QCoreApplication, QProcess, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QPalette, QColor, QFont, QFontDatabase, QIcon
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QPushButton,
     QLineEdit, QTextEdit, QLabel, QListWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
@@ -233,8 +233,6 @@ def test_list_widget_item_adding_performance():
     # methods = [w.clear for w in widgets]
     # time_methods(*methods, n=1)
 
-
-
 def test_list_widget_items_add():
 
     # class A(QListWidget):
@@ -315,7 +313,6 @@ def test_list_uniform_item_size():
     a, b = A(), B()
     time_methods(a.add, b.add)#, n=2)
 
-
 def test_file_compare():
     import filecmp
 
@@ -354,31 +351,41 @@ def test_restart_process():
     import subprocess
 
 
-
     # https://stackoverflow.com/questions/49019527/correct-way-to-implement-auto-update-feature-for-pyqt
     # Begin the update process by spawning the updater script.
 
-    class W(QWidget):
+    class W(QLabel):
         def keyPressEvent(self, event):
             # if updating.check_for_update():
-            script = Path.cwd() / 'src/main/python/updating.py'
-            p = subprocess.Popen([sys.executable, str(script), 'https://sample.url'], shell=True)
-            stop_app()
+            # script = Path.cwd() / 'updating.py'
+            # p = subprocess.Popen([sys.executable, str(script), 'https://sample.url'], shell=True)
+            # stop_app()
             # QApplication.exit(0)
             # print(p)
             # exit_code = p.wait()
             # print(exit_code)
             # sys.exit(exit_code)
 
+            from updating import check_for_update, download_update, start_app
+            # url = check_for_update()
+            url = 'https://release-files.com'
+            if url:
+                download_update(url)
 
-    def stop_app():
-        QApplication.exit(0)
+                stop_app_with_restart_signal()
+                # then new app process will be launched
 
-    show_widget(W)
+                # sys.exit()
+
+    def stop_app_with_restart_signal():
+        QApplication.exit(2)
+
+    show_widget_checking_exit(W)
 
 
     # https://stackoverflow.com/questions/16549331/pyqt-application-performing-updates
     # res, pid = QtCore.QProcess.startDetached('program.exe', ['arg1', 'arg2'], 'cwd')
+
     # detached_process = process(updater_method)
     # def updater_method():
     #     # kill app ui
@@ -388,6 +395,70 @@ def test_restart_process():
 
 
     # https://stackoverflow.com/questions/49127454/running-external-python-script-from-pyinstaller
+
+def test_start_app_in_new_process():
+    # print(Path.cwd())
+    main_path = str(Path.cwd() / 'src/main/python/main.py')
+
+    # process method 1
+    # p = subprocess.Popen([sys.executable, main_path], shell=True)#, close_fds=True)
+    # exit_code = p.wait()
+    # sys.exit(exit_code)
+
+    # process method 2
+    # process = QProcess()
+    # process.setProgram(sys.executable)
+    # process.setArguments([main_path])
+    # status, pid = process.startDetached()
+    # print(status, pid)
+    # process.waitForFinished();
+    # process.close();
+
+    # kill method 1
+    # import psutil
+    # p = psutil.Process(self._pid)
+    # p.terminate()
+
+    # kill method 2
+    # import os
+    # import signal
+    # os.kill(pid, signal.SIGTERM) #or signal.SIGKILL
+
+    # works enough
+    # QProcess.startDetached(sys.executable, [main_path,])
+    # # res, pid = QProcess.startDetached(sys.executable, [main_path,])
+    # # print(res, pid)
+
+    executable_app_path = str(Path.cwd() / 'target/Fast Bible/Fast Bible.exe')
+    print(executable_app_path)
+    QProcess.startDetached(executable_app_path, [])
+
+def test_custom_slot():
+    from time import sleep
+    from threading import Thread
+
+
+    class W(QLabel):
+        signal = pyqtSignal()
+
+        def __init__(self):
+            super().__init__()
+            Thread(target=self.sleep_and_signal).start()
+
+        def keyPressEvent(self, event):
+            self.signal.emit()
+
+        def sleep_and_signal(self):
+            sleep(3)
+            self.signal.emit()
+
+    def f():
+        w = W()
+        w.signal.connect( lambda: print('punched') )
+        return w
+
+    show_widget(f)
+
 
 
 def test_quit_app():
@@ -462,16 +533,54 @@ def show_alternate_classes(**kwargs):
         return MarginParent(p)
     show_widget(BasicApp)
 
+def show_widget_checking_exit(make_widget):
+    import shared, subprocess
+    import os
+
+    app = QApplication([])
+    w = make_widget()
+    w.show()
+    exit_code = app.exec_()
+    print(exit_code)
+    if exit_code == shared.RESTART_EXIT_CODE:
+        print('restart!')
+        # main_path = str(Path.cwd() / 'updating.py')
+        main_path = str(Path.cwd() / 'test.py')
+        # process method 1
+        # p = subprocess.Popen([sys.executable, main_path], start_new_session=True)#, shell=True)#, close_fds=True)
+
+        # process method 2
+        QProcess.startDetached(sys.executable, [main_path,])
+        # print(res, pid)
+
+        # exit_code = p.wait()
+        # print('process exit code', exit_code)
+        # print(f'closing process {os.getpid()}')
+        # sys.exit()
+
+    print(f'closing process {os.getpid()}')
+    # sys.exit(exit_code)
+
+    import os
+    import signal
+    # pid = sys.argv[1]
+    pid = os.getpid()
+    print(pid)
+    os.kill(pid, signal.SIGTERM)
+
+
 def show_widget(make_widget):
     app = QApplication([])
     w = make_widget()
     w.show()
     # app.exec_()
     exit_code = app.exec_()
+    # print(exit_code)
     sys.exit(exit_code)
 
 if __name__ == '__main__':
-    test_restart_process()
+    test_custom_slot()
+    # test_restart_process()
     # test_quit_app()
     # test_download_zip()
     # test_download_release()

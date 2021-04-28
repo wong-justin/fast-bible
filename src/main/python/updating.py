@@ -11,6 +11,9 @@ from pathlib import Path
 import subprocess
 import sys
 
+from PyQt5.QtCore import QProcess
+
+
 # def stop_app():
 #     pass
 
@@ -25,15 +28,10 @@ def download_update(url):
     print('hello world')
     print(url)
 
-def start_app():
-    script = Path.cwd() / 'src/main/python/main.py'
-    print(sys.executable)
-    p = subprocess.Popen([sys.executable, str(script)], shell=True)#, close_fds=True)
-    exit_code = p.wait()
-    sys.exit(exit_code)
 
 
 if __name__ == '__main__':
     # if check_for_update():
-    download_update(sys.argv[1])
+    # download_update(sys.argv[1])
+    download_update('https://something')
     start_app()
