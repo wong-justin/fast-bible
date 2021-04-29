@@ -1,10 +1,14 @@
 '''
 app.py
 
-update_url = updating.check_for_update():
-if update_url:
-    subprocess('updating.py', update_url)   # downloads content and starts app
-    app.close()
+if updating.check_for_update():
+    updating.update()
+
+# or in more steps
+if updating.check_for_update():
+    updating.download_update()
+    for filename in extract_progress_iterator():
+        pass
 '''
 
 import sys
@@ -58,7 +62,8 @@ def version_greater_than(v1, v2):
 def split_ints(s, sep='.'):
     return (int(i) for i in s.split(sep))
 
-def download_update():
+def update():
+    # all in one, after check_for_update() was called and set url
     url = info['download_url']
     print(f'downloading from {url}')
 
@@ -66,6 +71,38 @@ def download_update():
     # outdir = Path(sys.executable) - filename  # dir of frozen app
     with download_zip(url) as zip:
         zip_extract_all(zip, lambda path: outdir / strip_first_folder(path) )
+
+def download_update():
+    # download and set result in global
+    url = info['download_url']
+    zip = download_zip(url)
+    info['zip'] = zip
+    info['num_files'] = len(zip.filelist)
+
+def extract_progress_iterator():
+    # incremental version
+    # for filename in extract_progress_iterator:
+    #   progress += 1
+
+    outdir = './misc/tmp/'
+    with info['zip'] as zip:
+        yield from zip_extract_all_iter(zip, lambda path: outdir / strip_first_folder(path) )
+
+def zip_extract_all_iter(zip, modify_path):
+    # incrementally update caller with filename being extracted
+
+    for info in zip.filelist:
+        yield info.filename
+        outpath = modify_path(info.filename)
+
+        if info.is_dir():
+            outpath.mkdir(exist_ok=True)
+        else:
+            source_file = zip.open(info.filename)
+            target_file = open(outpath, 'wb')   # overwrites
+            shutil.copyfileobj(source_file, target_file)
+    yield 'finished'
+
 
 def download_zip(url):
     # returns ZipFile of http response

@@ -16,8 +16,6 @@ from time import sleep
 from threading import Thread
 import os
 
-
-
 def _read_csv(fp):
     '''Returns list of chunks per line'''
     with open(fp, 'r') as file:
@@ -27,16 +25,18 @@ def _read_csv(fp):
             line = file.readline()
 
 class MyAppContext(ApplicationContext, QObject):
+    # wraps main widget with meta-functions like restarting and updating
     # extends QObject for sake of having slots
     # has slot for sake of initiating gui update from worker thread
 
-    update_signal = pyqtSignal()
+    update_available = pyqtSignal()
+    download_finished = pyqtSignal()
 
     def __init__(self, *args, **kwargs):
         ApplicationContext.__init__(self, *args, **kwargs)
         QObject.__init__(self)
 
-        self.update_signal.connect(self.ask_to_update)
+        self.update_available.connect(self.ask_to_update)
 
     def run(self, main, title):
 
@@ -71,7 +71,7 @@ class MyAppContext(ApplicationContext, QObject):
     def check_for_update(self):
         # done in worker thread to prevent http time from blocking gui
         if updating.check_for_update(self.build_settings['version']):
-            self.update_signal.emit()
+            self.update_available.emit()
 
         # testing
         # sleep(2)
@@ -79,54 +79,55 @@ class MyAppContext(ApplicationContext, QObject):
 
     def ask_to_update(self):
 
-        # old way, no choice, auto restart
-        # dialog = DownloadDialog('App Update', '', (0,66), self.main)
-        # dialog.show()
-        #
-        # # testing
-        # sleep(3)
-        #
-        # updating.download_update(download_url)
-        # dialog.close()
-        #
-        # self.app.exit(RESTART_EXIT_CODE)
-
         # new way, choice to restart
         curr = updating.info['v_curr']
         latest = updating.info['v_latest']
+        title = 'Update'
+        text = 'FastBible has been updated! Download now?'
         details = f'Version {curr} -> {latest}'#\n changelog')
         def on_accept():
             # self.app.exit(RESTART_EXIT_CODE)
             self.show_downloading_update()
 
-        dialog = ChoiceDialog('Update',
-                              f'FastBible has been updated! Download now?',
-                              details,
-                              on_accept,
-                              parent=self.main)
-        dialog.show()
+        ChoiceDialog(title, text, details, on_accept, parent=self.main).show()
 
     def show_downloading_update(self):
         dialog = DownloadDialog('Updating', '', (0,1), self.main)
         dialog.show()
 
-        # testing
-        sleep(3)
-        # real
-        # updating.download_update(download_url)
+        # download http request blocks gui, so do that in main thread as first part of progress
+        # then unzip result (which is pretty fast) as last part of progress
+        def download():
+            # sleep(3)    # testing
+            updating.download_update()  # real
+            self.download_finished.emit()
 
-        dialog.close()
+        def on_download_finished():
+            # dialog.setMaximum(updating.info['num_files'])
+            # dialog.setMaximum(100)  # testing
+            i = 1
+            for filename in updating.extract_progress_iterator():
+            # for filename in range(10000): # testing
+                # filename = str(filename) + 'abcdefghkljaslkdaasjdakjsd'   # testing
+                dialog.setLabelText(_quick_elide(filename))
+                dialog.setValue(i)
+                i += 1
 
-        # wait for user to acknowledge, then restart
+            dialog.close()
 
-        AcknowledgeDialog('Updating',
-                          'Finished. Restart to take effect.',
-                          on_accept=lambda:self.app.exit(RESTART_EXIT_CODE),
-                          parent=self.main).show()
-        # old way: not really cancelling, just using default button signal from progress dialog to show user when done
-        # dialog.canceled.connect(lambda:self.app.exit(RESTART_EXIT_CODE)) # restart when done
-        # dialog.setCancelButton(QPushButton('Ok', dialog))
-        # dialog.setLabelText('Update finished.\nRestart to take effect.')
+            # wait for user to acknowledge to restart
+            AcknowledgeDialog('Updating',
+                              'Finished. Restart to take effect.',
+                              on_accept=lambda:self.app.exit(RESTART_EXIT_CODE),
+                              parent=self.main).show()
+            # old way: not really cancelling, just using default button signal from progress dialog to show user when done
+            # dialog.canceled.connect(lambda:self.app.exit(RESTART_EXIT_CODE)) # restart when done
+            # dialog.setCancelButton(QPushButton('Ok', dialog))
+            # dialog.setLabelText('Update finished.\nRestart to take effect.')
+
+        dialog.setLabelText('Downloading files..')
+        self.download_finished.connect(on_download_finished)
+        Thread(target=download).start()
 
     def show_downloading_bible(self):
         dialog = DownloadDialog('Downloading the Bible',
@@ -145,6 +146,11 @@ class MyAppContext(ApplicationContext, QObject):
 
 def _first_time_running_app():
     return len( os.listdir(BOOK_DIR) ) <= 1
+
+def _quick_elide(long_str):
+    if len(long_str) < 20 + 3:
+        return long_str
+    return long_str[:20] + '...'
 
 class DownloadDialog(QProgressDialog):
     # config dialog to block main window until progress finished
