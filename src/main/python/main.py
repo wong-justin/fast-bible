@@ -390,40 +390,4 @@ if __name__ == '__main__':
     init_data()
 
     main = Main(PageManager(BooksPage, ChaptersPage, VersesPage, SearchResultsPage))
-    # main.setWindowTitle('Bible')    # initial title to override fbs default
-    # main.show()
-    #
-    # # if first time loading app
-    # if len( os.listdir(BOOK_DIR) ) <= 1: # gitignore takes up space
-    #     # initiate content download with welcome window
-    #
-    #     dialog = QProgressDialog('', '', 0, 66, main)
-    #     dialog.setMinimumDuration(0)
-    #     dialog.setCancelButton(None)
-    #     dialog.setWindowFlag(Qt.WindowCloseButtonHint, False)
-    #     dialog.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
-    #     dialog.setWindowTitle('Downloading the Bible...')
-    #     dialog.setModal(True)
-    #     dialog.setLabelText('fetching from jw.org...')
-    #     dialog.show()
-    #
-    #         # probably should catch errors here
-    #     import setup
-    #     i = 1
-    #     for name in setup.main_progress_iterator():
-    #         dialog.setLabelText(name)
-    #         dialog.setValue(i)
-    #         i += 1
-    #     dialog.close()  # become normal app; main window focused
-    #
-    # # run
-    # exit_code = appctxt.app.exec_()
-    # # appctxt.app.run()
-    #
-    # # restarting
-    # if exit_code == RESTART_EXIT_CODE:
-    #     appctxt.start_app_in_new_process()
-    #     exit_code = 0
-    #
-    # sys.exit(exit_code)
     appctxt.run(main, 'Bible')

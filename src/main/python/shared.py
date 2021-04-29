@@ -7,7 +7,7 @@ import updating
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from fbs_runtime.application_context import is_frozen
 from PyQt5.QtCore import Qt, QProcess, QObject, QThread, pyqtSignal
-from PyQt5.QtWidgets import QProgressDialog
+from PyQt5.QtWidgets import QProgressDialog, QMessageBox, QPushButton
 
 from pathlib import Path
 import sys
@@ -30,13 +30,13 @@ class MyAppContext(ApplicationContext, QObject):
     # extends QObject for sake of having slots
     # has slot for sake of initiating gui update from worker thread
 
-    update_signal = pyqtSignal(str)
+    update_signal = pyqtSignal()
 
     def __init__(self, *args, **kwargs):
         ApplicationContext.__init__(self, *args, **kwargs)
         QObject.__init__(self)
 
-        self.update_signal.connect(self.show_downloading_update)
+        self.update_signal.connect(self.ask_to_update)
 
     def run(self, main, title):
 
@@ -70,25 +70,63 @@ class MyAppContext(ApplicationContext, QObject):
 
     def check_for_update(self):
         # done in worker thread to prevent http time from blocking gui
-        url = updating.check_for_update(self.build_settings['version'])
-        if url:
-            self.update_signal.emit(url)
+        if updating.check_for_update(self.build_settings['version']):
+            self.update_signal.emit()
 
         # testing
         # sleep(2)
         # self.update_signal.emit('https://some_url')
 
-    def show_downloading_update(self, download_url):
-        dialog = DownloadDialog('App Update', '', (0,66), self.main)
+    def ask_to_update(self):
+
+        # old way, no choice, auto restart
+        # dialog = DownloadDialog('App Update', '', (0,66), self.main)
+        # dialog.show()
+        #
+        # # testing
+        # sleep(3)
+        #
+        # updating.download_update(download_url)
+        # dialog.close()
+        #
+        # self.app.exit(RESTART_EXIT_CODE)
+
+        # new way, choice to restart
+        curr = updating.info['v_curr']
+        latest = updating.info['v_latest']
+        details = f'Version {curr} -> {latest}'#\n changelog')
+        def on_accept():
+            # self.app.exit(RESTART_EXIT_CODE)
+            self.show_downloading_update()
+
+        dialog = ChoiceDialog('Update',
+                              f'FastBible has been updated! Download now?',
+                              details,
+                              on_accept,
+                              parent=self.main)
+        dialog.show()
+
+    def show_downloading_update(self):
+        dialog = DownloadDialog('Updating', '', (0,1), self.main)
         dialog.show()
 
         # testing
         sleep(3)
+        # real
+        # updating.download_update(download_url)
 
-        updating.download_update(download_url)
         dialog.close()
 
-        self.app.exit(RESTART_EXIT_CODE)
+        # wait for user to acknowledge, then restart
+
+        AcknowledgeDialog('Updating',
+                          'Finished. Restart to take effect.',
+                          on_accept=lambda:self.app.exit(RESTART_EXIT_CODE),
+                          parent=self.main).show()
+        # old way: not really cancelling, just using default button signal from progress dialog to show user when done
+        # dialog.canceled.connect(lambda:self.app.exit(RESTART_EXIT_CODE)) # restart when done
+        # dialog.setCancelButton(QPushButton('Ok', dialog))
+        # dialog.setLabelText('Update finished.\nRestart to take effect.')
 
     def show_downloading_bible(self):
         dialog = DownloadDialog('Downloading the Bible',
@@ -109,17 +147,51 @@ def _first_time_running_app():
     return len( os.listdir(BOOK_DIR) ) <= 1
 
 class DownloadDialog(QProgressDialog):
-    # config dialog to block main window until finished
+    # config dialog to block main window until progress finished
     def __init__(self, title, label='', _range=(0,0), parent=None):
-        super().__init__(parent, Qt.WindowCloseButtonHint | Qt.WindowContextHelpButtonHint)
+        super().__init__(parent)
+        self.setWindowFlag(Qt.WindowCloseButtonHint, False)
+        self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
         self.setRange(*_range)
         self.setCancelButton(None)
         self.setWindowTitle(title)
+        self.setLabelText(label)
         self.setModal(True)
         self.setMinimumDuration(0)
 
+class ChoiceDialog(QMessageBox):
+    # convenience for an ok/cancel dialog
+    def __init__(self, title='', text='', subtext='', on_accept=lambda:None, on_reject=lambda:None, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setText(text)
+        self.setDetailedText(subtext)
+        self.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel);
+        self.setDefaultButton(QMessageBox.Ok);
+        self.on_accept = on_accept
+        self.on_reject = on_reject
 
+    def show(self):
+        clicked = self.exec()
+        if clicked == QMessageBox.Ok:
+            self.on_accept()
+        else:
+            self.on_reject()
 
+class AcknowledgeDialog(QMessageBox):
+    # only one option and callback, but still notifies user
+    def __init__(self, title='', text='', on_accept=lambda:None, on_reject=lambda:None, parent=None):
+        super().__init__(parent)
+        self.setWindowFlag(Qt.WindowCloseButtonHint, False)
+        self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+        self.setWindowTitle(title)
+        self.setText(text)
+        self.setStandardButtons(QMessageBox.Ok);
+        self.on_accept = on_accept
+
+    def show(self):
+        self.exec()
+        self.on_accept()
 
 appctxt = MyAppContext()
 # print(appctxt.build_settings)

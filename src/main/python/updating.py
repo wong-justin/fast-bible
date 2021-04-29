@@ -14,14 +14,20 @@ from zipfile import ZipFile
 from pathlib import Path
 import shutil
 
+# version and download information exposed to global
+info = dict()
+
 def check_for_update(curr_version):
     # returns url to files zip if latest version is newer, else False
 
     # https://docs.github.com/en/rest/reference/repos#releases
     latest_release_url = 'https://api.github.com/repos/wong-justin/fast-bible/releases/latest'
     release_info = requests.get(latest_release_url).json()
-    latest_version = release_info['tag_name']
-    if not version_greater_than(latest_version[1:],     # strip 'v', like 'v0.2', from github tag
+    latest_version = release_info['tag_name'][1:]     # strip 'v', like 'v0.2', from github tag
+
+    info['v_curr'] = curr_version
+    info['v_latest'] = latest_version
+    if not version_greater_than(latest_version,
                                 curr_version):
         return False
 
@@ -29,29 +35,36 @@ def check_for_update(curr_version):
     download_url = release_info['zipball_url']
 
     # real way when partial files asset is uploaded
-    # assets = release_info['assets']
+    # assets = release_info['assets']   # list of objs
     # updated_files_asset = find_obj_where(assets, lambda x:x['name'] == '_updated_files.zip')
     # download_url = updated_files_asset['url']
     # # download_url = updated_files_asset['browser_download_url']    # maybe it's this one?
 
-    return download_url
+    info['download_url'] = download_url
+    return True
 
 def version_greater_than(v1, v2):
-    print(v1, v2)
-    # ('0.12.1', '0.3.1') -> True
+    # compare strings
+    # ('0.12.1', '0.3') -> True
+    # ('0.4', '0.1.1') -> False
+    for a,b in zip(split_ints(v1), split_ints(v2)):
+        pass
+
 
     # temp
     # return v1 > v2
     return True
 
-def download_update(url):
-    print('hello world')
-    print(url)
-    return
+def split_ints(s, sep='.'):
+    return (int(i) for i in s.split(sep))
+
+def download_update():
+    url = info['download_url']
+    print(f'downloading from {url}')
 
     outdir = './misc/tmp/'
     # outdir = Path(sys.executable) - filename  # dir of frozen app
-    with download_zip(download_url) as zip:
+    with download_zip(url) as zip:
         zip_extract_all(zip, lambda path: outdir / strip_first_folder(path) )
 
 def download_zip(url):
