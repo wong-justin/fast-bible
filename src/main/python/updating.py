@@ -39,10 +39,10 @@ def check_for_update(curr_version):
     download_url = release_info['zipball_url']
 
     # real way when partial files asset is uploaded
-    # assets = release_info['assets']   # list of objs
-    # updated_files_asset = find_obj_where(assets, lambda x:x['name'] == '_updated_files.zip')
+    assets = release_info['assets']   # list of objs
+    updated_files_asset = find_obj_where(assets, lambda x:x['name'] == '_updated_files.zip')
     # download_url = updated_files_asset['url']
-    # # download_url = updated_files_asset['browser_download_url']    # maybe it's this one?
+    download_url = updated_files_asset['browser_download_url']    # maybe it's this one?
 
     info['download_url'] = download_url
     return True
@@ -67,8 +67,9 @@ def update():
     url = info['download_url']
     print(f'downloading from {url}')
 
-    outdir = './misc/tmp/'
-    # outdir = Path(sys.executable) - filename  # dir of frozen app
+    # outdir = './misc/tmp/'  # testing
+    # outdir = Path.cwd()       # executable dir of frozen app
+    outdir = Path(sys.executable).parent  # dir of frozen app
     with download_zip(url) as zip:
         zip_extract_all(zip, lambda path: outdir / strip_first_folder(path) )
 
@@ -84,7 +85,10 @@ def extract_progress_iterator():
     # for filename in extract_progress_iterator:
     #   progress += 1
 
-    outdir = './misc/tmp/'
+    # outdir = './target/Fast Bible'  # testing
+    # outdir = './misc/tmp'   # testing
+    # outdir = Path.cwd()       # executable dir of frozen app
+    outdir = Path(sys.executable).parent  # dir of frozen app
     with info['zip'] as zip:
         yield from zip_extract_all_iter(zip, lambda path: outdir / strip_first_folder(path) )
 
@@ -92,15 +96,19 @@ def zip_extract_all_iter(zip, modify_path):
     # incrementally update caller with filename being extracted
 
     for info in zip.filelist:
-        yield info.filename
         outpath = modify_path(info.filename)
+        yield str(outpath)
 
-        if info.is_dir():
-            outpath.mkdir(exist_ok=True)
-        else:
-            source_file = zip.open(info.filename)
-            target_file = open(outpath, 'wb')   # overwrites
-            shutil.copyfileobj(source_file, target_file)
+        try:
+            if info.is_dir():
+                outpath.mkdir(exist_ok=True)
+            else:
+                source_file = zip.open(info.filename)
+                target_file = open(outpath, 'wb')   # overwrites
+                shutil.copyfileobj(source_file, target_file)
+        except Exception as e:
+            with open('log.txt', 'w') as file:
+                file.write(str(e))
     yield 'finished'
 
 

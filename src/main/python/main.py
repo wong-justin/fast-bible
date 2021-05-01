@@ -381,13 +381,25 @@ class Main(QWidget):
         self.settings.setValue('geometry', geometry)
 
         super().closeEvent(event)
+        QApplication.quit()
 
 # --- run
 
 if __name__ == '__main__':
+
+    appctxt = MyAppContext()
+
+    # app = AutoUpdatingApp([])
+    # set_theme(app)
+
     set_theme(appctxt.app)
 
     init_data()
 
     main = Main(PageManager(BooksPage, ChaptersPage, VersesPage, SearchResultsPage))
-    appctxt.run(main, 'Bible')
+    main.show()
+
+    # exit_code = appctxt.app.exec_()
+    # sys.exit(exit_code)
+
+    appctxt.app.run()

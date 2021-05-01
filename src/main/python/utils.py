@@ -391,7 +391,7 @@ def set_theme(app):
     font_db = QFontDatabase()
     # font_db.addApplicationFont('../assets/Noto_Serif/NotoSerif-Regular.ttf')
     # font_db.addApplicationFont('../resources/assets/Noto_Sans/NotoSans-Regular.ttf')
-    font_db.addApplicationFont(appctxt.get_resource('assets/Noto_Sans/NotoSans-Regular.ttf'))
+    font_db.addApplicationFont(str(RESOURCE_DIR / 'assets/Noto_Sans/NotoSans-Regular.ttf'))
     # font = QFont('Noto Serif')
     font = QFont('Noto Sans')
     font.setPointSize(10)
@@ -516,5 +516,8 @@ def strip_tags(html):
 
 def dict_where_keys(d, filter_key_fn):
     return {k:v for k,v in d.items() if filter_key_fn(k)}
+
+### --- updating helpers
+
 
 OPACITY_TEMPLATE = '<span style="color:rgba(222, 226, 247, 0.5);">{}</span>'
