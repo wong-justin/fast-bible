@@ -677,7 +677,7 @@ def show_widget(make_widget):
     sys.exit(exit_code)
 
 if __name__ == '__main__':
-    test_move_files_and_folders()
+    # test_move_files_and_folders()
     # test_build_settings()
     # test_separate_process()
     # test_custom_slot()
@@ -685,7 +685,7 @@ if __name__ == '__main__':
     # test_quit_app()
     # test_download_zip()
     # test_download_release()
-    # test_file_compare()
+    test_file_compare()
     # test_list_uniform_item_size()
     # test_window_sizing()
     # test_list_widget_item_adding_performance()

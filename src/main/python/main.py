@@ -1,6 +1,7 @@
 
 from utils import *
-from updating import *
+from shared import *
+from updating import MyAppContext
 
 from threading import Thread
 import re
@@ -370,7 +371,7 @@ class Main(QWidget):
 
         child.setParent(self)
 
-        self.settings = QSettings(RES_DIR + '/FastBible.ini', QSettings.IniFormat)  # I can specify the location
+        self.settings = QSettings(str(RESOURCE_DIR / 'settings.ini'), QSettings.IniFormat)  # I can specify the location
         # self.settings = QSettings('FastBible', 'FastBible')   # saved in some OS specific location
         default = bytes('', encoding='utf-8')
         geometry = self.settings.value('geometry', default)
@@ -381,23 +382,19 @@ class Main(QWidget):
         self.settings.setValue('geometry', geometry)
 
         super().closeEvent(event)
-        QApplication.quit()
 
 # --- run
 
 if __name__ == '__main__':
 
     appctxt = MyAppContext()
-
-    # app = AutoUpdatingApp([])
-    # set_theme(app)
-
     set_theme(appctxt.app)
 
     init_data()
 
     main = Main(PageManager(BooksPage, ChaptersPage, VersesPage, SearchResultsPage))
     main.show()
+    main.setWindowTitle('Bible')
 
     # exit_code = appctxt.app.exec_()
     # sys.exit(exit_code)
