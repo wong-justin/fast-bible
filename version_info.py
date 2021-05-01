@@ -8,15 +8,15 @@ VSVersionInfo(
     # filevers and prodvers should be always a tuple with four items: (1, 2, 3, 4)
     # Set not needed items to zero 0. Must always contain 4 elements.
     filevers=(
-        int('0.1.0'.split('.')[0]),
-        int('0.1.0'.split('.')[1]),
-        int('0.1.0'.split('.')[2]),
+        int('0.3.0'.split('.')[0]),
+        int('0.3.0'.split('.')[1]),
+        int('0.3.0'.split('.')[2]),
         0
     ),
     prodvers=(
-        int('0.1.0'.split('.')[0]),
-        int('0.1.0'.split('.')[1]),
-        int('0.1.0'.split('.')[2]),
+        int('0.3.0'.split('.')[0]),
+        int('0.3.0'.split('.')[1]),
+        int('0.3.0'.split('.')[2]),
         0
     ),
     # Contains a bitmask that specifies the valid bits 'flags'r
@@ -42,12 +42,12 @@ VSVersionInfo(
         '040904B0',
         [StringStruct('CompanyName', 'J. Wong'),
         StringStruct('FileDescription', 'Fast Bible'),
-        StringStruct('FileVersion', '0.1.0.0'),
+        StringStruct('FileVersion', '0.3.0.0'),
         StringStruct('InternalName', 'Fast Bible'),
         StringStruct('LegalCopyright', '© J. Wong. All rights reserved.'),
         StringStruct('OriginalFilename', 'Fast Bible.exe'),
         StringStruct('ProductName', 'Fast Bible'),
-        StringStruct('ProductVersion', '0.1.0.0')])
+        StringStruct('ProductVersion', '0.3.0.0')])
       ]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]
