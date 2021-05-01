@@ -110,7 +110,10 @@ windows_move_script = (
     # r'move "%~dp0\tmp\Fast Bible.exe" "%~dp0\Fast Bible.exe"'
 
     # cleanup: delete tmp dir
-    r'cd ..\ & rmdir /s %cd%\updates\*'
+    # r'cd ..\ & rmdir /s %cd%\updates\*'
+    # r'del * /q & echo finished update & exit'
+    r'cd ..\ & rmdir /s /q updates & echo finished update'
+    # r'cd ..\ & rmdir /s updates'
     # 'echo %cd%\*'
     # r'rmdir /s /q %cd%\* & del %cd%\* & echo done'
     # r'rmdir /s /q/ "*" /y & del "*" /y & echo done'
